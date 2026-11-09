@@ -102,10 +102,13 @@ const cards = [
   ["Win rate", m.n ? m.win_rate.toFixed(0) + "%" : "–", ""],
   ["Average trade", m.n ? pct(m.avg_ret) : "–", m.avg_ret >= 0 ? "up" : "down"],
   ["Vs backtest", T.verdict, ""],
+  ["Your fills vs assumed", T.fills && T.fills.n ? pct(-T.fills.cost) + " (" + T.fills.n + ")" : "Reply \"filled\"",
+   T.fills && T.fills.n ? (T.fills.cost <= 0 ? "up" : "down") : ""],
 ];
 cards.forEach(([k, v, c]) => {
   const d = el("div", {className: "card"});
-  d.append(el("div", {className: "k"}, k), el("div", {className: "v " + c, style: k === "Vs backtest" ? "font-size:14px;font-weight:600" : ""}, v));
+  const small = k === "Vs backtest" || v.startsWith("Reply");
+  d.append(el("div", {className: "k"}, k), el("div", {className: "v " + c, style: small ? "font-size:14px;font-weight:600" : ""}, v));
   $("cards").append(d);
 });
 

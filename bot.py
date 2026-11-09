@@ -23,6 +23,7 @@ import csv
 import html
 import json
 import lzma
+import math
 import os
 import struct
 import sys
@@ -269,11 +270,13 @@ def sizing_equity(j, cfg):
 
 
 def exposure(j, conv, day):
+    """Your account's exposure: signals you skipped (or that were too small) don't count."""
     gross = 0.0
     for p in j["positions"].values():
-        gross += p["units"] * p["marks"][-1][1] * conv(p["ccy"], day)
+        if p["taken"]:
+            gross += p["units"] * p["marks"][-1][1] * conv(p["ccy"], day)
     for q in j["pending"].values():
-        if q["side"] == "buy":
+        if q["side"] == "buy" and q.get("taken", True):
             gross += q["units"] * q["close"] * conv(q["ccy"], day)
     return gross
 
@@ -302,12 +305,13 @@ def step(j, cfg, m, ind, i, day, conv, ev):
         pos = j["positions"][code] = dict(
             id=pend["id"], code=code, name=name, ccy=ccy, taken=pend["taken"], signal_date=pend["signal_date"],
             signal_rsi=pend["rsi"], signal_close=pend["close"], entry_date=day, entry=fill or o * (1 + half),
-            entry_source="you" if fill else "assumed", stop=pend["stop"], units=pend["units"], financing=0.0,
-            marks=[], notes=pend.get("notes", []))
+            assumed_entry=o * (1 + half), entry_source="you" if fill else "assumed", stop=pend["stop"],
+            units=pend["units"], lots=pend.get("lots"), financing=0.0, marks=[], notes=pend.get("notes", []))
         ev.append(("bought", pos))
     elif pend and pend["side"] == "sell" and pos is not None:
         fill = pend.get("user_fill")
         pos["exit_why"] = pend.get("why", "closed above the 5-day average")
+        pos["assumed_exit"] = o * (1 - half)
         close_trade(j, code, day, fill or o * (1 - half), "you" if fill else "assumed", "signal", rate, ev)
         pos = None
 
@@ -324,16 +328,21 @@ def step(j, cfg, m, ind, i, day, conv, ev):
 
     # Signals on today's close, for the next open
     a, trend, ex, r = ind["atr"][i], ind["trend"][i], ind["exit"][i], ind["rsi"][i]
+    buy_at, exit_rsi = cfg["rsi_below"], cfg.get("exit_rsi")
     if pos is not None:
-        exit_rsi = cfg.get("exit_rsi")
         why = None
         if exit_rsi and r is not None and r > exit_rsi:
             why = f"the 2-day RSI closed at {r:.1f}, above {exit_rsi:g}"
         elif not exit_rsi and ex is not None and c > ex:
             why = f"the close {c:,.2f} is above the 5-day average {ex:,.2f}"
         if why:
-            j["pending"][code] = dict(side="sell", id=pos["id"], signal_date=day, close=c, why=why, user_fill=None)
-    elif None not in (a, trend, r) and a > 0 and c > trend and r < cfg["rsi_below"]:
+            close_call = (f"RSI {r:.1f} is only just above {exit_rsi:g}"
+                          if exit_rsi and r - exit_rsi < 2 else None)
+            j["pending"][code] = dict(side="sell", id=pos["id"], signal_date=day, close=c, why=why,
+                                      borderline=close_call, user_fill=None)
+        elif exit_rsi and r is not None and r > exit_rsi - 2:
+            ev.append(("near", dict(name=name, day=day, text=f"RSI {r:.1f}, just under the {exit_rsi:g} sell level")))
+    elif None not in (a, trend, r) and a > 0 and c > trend and r < buy_at:
         equity = sizing_equity(j, cfg)
         wanted = equity * cfg["risk_pct"] / 100 / (a * rate)
         room = cfg["max_gross"] * equity - exposure(j, conv, day)
@@ -341,10 +350,30 @@ def step(j, cfg, m, ind, i, day, conv, ev):
         if units <= 0:
             ev.append(("capped", dict(name=name, signal_date=day)))
             return
-        j["pending"][code] = dict(side="buy", id=j["next_id"], signal_date=day, close=c, rsi=r, trend=trend,
-                                  atr=a, stop=round(c - cfg["stop_atr"] * a, 2), units=units, ccy=ccy,
-                                  capped=units < wanted * 0.999, taken=True, user_fill=None, notes=[])
+        q = dict(side="buy", id=j["next_id"], signal_date=day, close=c, rsi=r, trend=trend, atr=a,
+                 stop=round(c - cfg["stop_atr"] * a, 2), units=units, ccy=ccy, capped=units < wanted * 0.999,
+                 taken=True, user_fill=None, notes=[], lots=None, too_small=None)
+        if m.get("contract_size"):
+            # Your broker's lots, rounded down so the risk never exceeds the plan
+            lot_step = m.get("lot_step") or 0.01
+            lots = math.floor(units / m["contract_size"] / lot_step + 1e-9) * lot_step
+            if lots < (m.get("min_lot") or lot_step) - 1e-9:
+                q.update(taken=False, too_small=units / m["contract_size"])
+            else:
+                q.update(lots=round(lots, 4), units=lots * m["contract_size"])
+        q["risk_usd"] = q["units"] * a * rate
+        tight = [f"RSI {r:.1f} is close to the {buy_at:g} level" if buy_at - r < 1 else None,
+                 f"the close is only {(c / trend - 1) * 100:.2f}% above the 200-day average"
+                 if c / trend - 1 < 0.003 else None]
+        q["borderline"] = " and ".join(x for x in tight if x) or None
+        j["pending"][code] = q
         j["next_id"] += 1
+    elif None not in (trend, r) and c > trend * 0.997 and r < buy_at + 1.5:
+        # No signal on this data, but close enough that your broker's prices might show one
+        text = (f"RSI {r:.1f}, just above the {buy_at:g} buy level" if c > trend
+                else f"RSI {r:.1f} but the close is just under the 200-day average")
+        if r < buy_at or c > trend:
+            ev.append(("near", dict(name=name, day=day, text=text)))
 
 
 def process(j, cfg, data, conv, until):
@@ -421,9 +450,11 @@ def apply_command(j, cfg, text, local_day):
             q["user_fill"] = price
             return f"{name}: your {q['side']} at {price:,.2f} will be recorded at the next update."
         if p is not None and p["entry_source"] == "assumed" and p["entry_date"] >= recent:
+            p.setdefault("assumed_entry", p["entry"])
             p["entry"], p["entry_source"] = price, "you"
             return f"{name}: entry updated to your price {price:,.2f}."
         if t is not None and t["exit_source"] == "assumed" and t["exit_date"] >= recent:
+            t.setdefault("assumed_exit", t["exit"])
             t["exit"], t["exit_source"] = price, "you"
             t["ret_pct"] = (price / t["entry"] - 1) * 100
             t["pnl"] = (price - t["entry"]) * t["units"] * t["conv"] - t["financing"]
@@ -492,21 +523,68 @@ def next_weekday(day):
     return d
 
 
-def compose(j, cfg, ev, today_local, acks, problems, page_url):
+def fill_quality(j):
+    """How your reported prices compared with the assumed ones: (fills, average cost %, positive = worse)."""
+    costs = []
+    for t in j["trades"] + list(j["positions"].values()):
+        if t.get("entry_source") == "you" and t.get("assumed_entry"):
+            costs.append((t["entry"] / t["assumed_entry"] - 1) * 100)
+        if t.get("exit_source") == "you" and t.get("assumed_exit"):
+            costs.append((1 - t["exit"] / t["assumed_exit"]) * 100)
+    return len(costs), (sum(costs) / len(costs) if costs else 0.0)
+
+
+def reminders_due(j, cfg, today_local):
+    """Today's signals you haven't reported a price for (or skipped)."""
+    names = {m["code"]: m["name"] for m in cfg["markets"]}
+    out = []
+    for code, q in j["pending"].items():
+        if q.get("taken", True) and not q.get("user_fill") and next_weekday(q["signal_date"]) == today_local:
+            out.append(f"{names[code]}: you haven't reported your {q['side']} price yet. Reply "
+                       f"filled {names[code]} PRICE, or skip {names[code]} if you didn't trade it.")
+    return out
+
+
+def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders):
+    today_local = now_local.date()
+    footer = ["", f"Calendar: {page_url}" if page_url else "",
+              "Reply: filled NAME PRICE · skip NAME · note TEXT · help"]
+    if not processed:
+        # Evening or manual run with no new trading day: only what needs your attention
+        lines = [f"<b>IndexPullback · {today_local:%a %d %b}, update</b>"]
+        if reminders:
+            lines += ["", "<b>Reminders</b>"] + [html.escape(r, quote=False) for r in reminders]
+        if acks:
+            lines += ["", "<b>Your replies</b>"] + [html.escape(a, quote=False) for a in acks]
+        if problems:
+            lines += ["", "⚠ " + "; ".join(html.escape(p, quote=False) for p in problems)]
+        return "\n".join(x for x in lines + footer if x is not None)
+
     by_code = {m["code"]: m for m in cfg["markets"]}
     lines = [f"<b>IndexPullback · {today_local:%a %d %b %Y}</b>", ""]
+    if now_local.hour >= 12:
+        lines += ["⚠ Late update: the morning run didn't go through (GitHub delay). These signals were "
+                  "meant for this morning's open, so entering now is later than tested.", ""]
     actions = []
     for code, q in j["pending"].items():
         m = by_code[code]
         when = next_weekday(q["signal_date"])
         at = "at the open" if when <= today_local else f"at the open on {when:%a %d %b}"
-        if q["side"] == "buy":
+        check = f" ⚠ Borderline: {q['borderline']}. Check your MT5 chart." if q.get("borderline") else ""
+        if q["side"] == "buy" and q.get("too_small"):
+            actions.append(f"⚪ {m['name']} buy signal (RSI {q['rsi']:.1f}), but {q['too_small']:.2f} lots is "
+                           f"below your broker's {m.get('min_lot') or m.get('lot_step')} minimum, so it's skipped.")
+        elif q["side"] == "buy":
             cut = ", reduced to stay under the exposure cap" if q.get("capped") else ""
-            actions.append(f"🟢 <b>BUY {m['name']}</b> {at}. Stop loss {q['stop']:,.2f}. "
-                           f"Size ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut} (RSI {q['rsi']:.1f})")
-        else:
-            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q.get('why', 'the sell rule triggered')})")
+            size = (f"Volume {q['lots']:g} lots (risk ≈ ${q['risk_usd']:,.0f} per normal day{cut})" if q.get("lots")
+                    else f"Size ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut}")
+            actions.append(f"🟢 <b>BUY {m['name']}</b> {at}. Stop loss {q['stop']:,.2f}. {size}. "
+                           f"(RSI {q['rsi']:.1f}){check}")
+        elif j["positions"].get(code, {}).get("taken", True):
+            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q.get('why', 'the sell rule triggered')}).{check}")
     for kind, t in ev:
+        if kind in ("stopped", "sold", "bought") and not t["taken"]:
+            continue  # a signal you didn't take: it stays in the strategy record on the calendar
         if kind == "stopped":
             actions.append(f"⛔ {t['name']} hit its stop at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
         elif kind == "sold":
@@ -518,13 +596,22 @@ def compose(j, cfg, ev, today_local, acks, problems, page_url):
             actions.append(f"• {t['name']} signal skipped: total exposure already at the cap")
     lines += actions or ["No action today."]
 
-    holding = [p for c, p in j["positions"].items() if c not in j["pending"]]
+    latest = max(j["last_bar"].values(), default="")
+    near = [t for kind, t in ev if kind == "near" and t["day"] == latest]
+    if near:
+        lines += ["", "Close calls, no signal on my data. Your broker's chart can differ slightly, so check MT5:"]
+        lines += [f"• {t['name']}: {t['text']}" for t in near]
+
+    holding = [p for c, p in j["positions"].items() if c not in j["pending"] and p["taken"]]
     if holding:
         lines.append("")
         for p in holding:
             change = round((p["marks"][-1][1] / p["entry"] - 1) * 100, 2) + 0.0  # + 0.0 turns -0.0 into 0.0
             lines.append(f"Holding {p['name']}: {change:+.2f}% since "
                          f"{date.fromisoformat(p['entry_date']):%d %b}, stop {p['stop']:,.2f}")
+    skipped = [p["name"] for p in j["positions"].values() if not p["taken"]]
+    if skipped:
+        lines.append(f"Skipped signals still tracked for the record (not in your account): {', '.join(skipped)}")
     busy = set(j["pending"]) | set(j["positions"])
     idle = [m["name"] for m in cfg["markets"] if m["code"] not in busy]
     if idle:
@@ -537,13 +624,19 @@ def compose(j, cfg, ev, today_local, acks, problems, page_url):
     lines += ["", f"Your record: {s['n']} trades · {s['wins']} wins ({s['win_rate']:.0f}%) · "
                   f"avg {s['avg_ret']:+.2f}% · total {money(s['total'])}",
               f"This month: {money(month_pnl)} · {verdict(s)}"]
+    fills, cost = fill_quality(j)
+    if fills:
+        word = "better" if cost <= 0 else "worse"
+        lines.append(f"Your fills: {abs(cost):.2f}% {word} than the assumed prices on average "
+                     f"({fills} fill{'s' if fills != 1 else ''})")
+    if j.get("balance_month") != month:
+        lines.append(f"Monthly check: reply balance AMOUNT with your demo balance so sizes match "
+                     f"(now sizing from ${sizing_equity(j, cfg):,.0f}).")
     if acks:
         lines += ["", "<b>Your replies</b>"] + [html.escape(a, quote=False) for a in acks]
     if problems:
         lines += ["", "⚠ " + "; ".join(html.escape(p, quote=False) for p in problems)]
-    lines += ["", f"Calendar: {page_url}" if page_url else "",
-              "Reply: filled NAME PRICE · skip NAME · note TEXT · help"]
-    return "\n".join(x for x in lines if x is not None)
+    return "\n".join(x for x in lines + footer if x is not None)
 
 
 def market_watch(j, cfg, data, until):
@@ -640,6 +733,7 @@ def build_page(j, cfg, now_local, path, watch=None):
                mine=s_mine, all=s_all, verdict=verdict(s_mine), expect=dict(win=EXPECT_WIN, avg=EXPECT_AVG),
                days={d: dict(pnl=round(v["pnl"], 2), items=v["items"]) for d, v in days.items()},
                open=open_pos, trades=trades, curve=curve, watch=watch or [],
+               fills=dict(zip(("n", "cost"), fill_quality(j))),
                rules={k: cfg.get(k) for k in ("rsi_below", "exit_rsi", "exit_sma", "trend_sma", "stop_atr",
                                                "atr_period", "risk_pct", "max_gross", "start_equity")},
                markets=[dict(name=m["name"], ccy=m["ccy"]) for m in cfg["markets"]])
@@ -670,10 +764,12 @@ def main():
     ap.add_argument("--replay-from", help="start a fresh journal at this date (testing)")
     ap.add_argument("--until", help="treat this date as today (testing)")
     ap.add_argument("--updates", help="read Telegram replies from this JSON file (testing)")
+    ap.add_argument("--config", default=os.path.join(ROOT, "config.json"))
+    ap.add_argument("--local-time", help="HH:MM local time of the run, with --until (testing)")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows consoles default to cp1252
 
-    with open(os.path.join(ROOT, "config.json"), encoding="utf-8") as f:
+    with open(args.config, encoding="utf-8") as f:
         cfg = json.load(f)
     jpath = os.path.join(args.state, "journal.json")
     j = new_journal()
@@ -685,6 +781,9 @@ def main():
     today = date.fromisoformat(args.until) if args.until else now.date()
     now_local = (datetime.combine(today, now.time(), timezone.utc) if args.until else now) \
         + timedelta(hours=cfg["utc_offset_hours"])
+    if args.local_time:
+        hh, mm = (int(x) for x in args.local_time.split(":"))
+        now_local = datetime(today.year, today.month, today.day, hh, mm)
     token, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     page_url = os.environ.get("PAGE_URL") or (
@@ -727,8 +826,15 @@ def main():
             problems.append(f"no new price for {', '.join(late)} yet (market holiday or data delay)")
 
     # 4. Message, journal, calendar
-    if processed or acks or problems:
-        msg = compose(j, cfg, ev, now_local.date(), acks, problems, page_url)
+    today_local = now_local.date()
+    reminders = []
+    if not processed and now_local.hour >= 18 and j.get("reminded_on") != today_local.isoformat():
+        reminders = reminders_due(j, cfg, today_local)
+        j["reminded_on"] = today_local.isoformat()
+    if processed or acks or problems or reminders:
+        msg = compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders)
+        if processed:
+            j["balance_month"] = today_local.strftime("%Y-%m")
         if args.dry_run or not token or not chat:
             print(msg.replace("<b>", "").replace("</b>", ""))
             print("-" * 60)

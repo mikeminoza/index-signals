@@ -62,10 +62,11 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
   <div class="panel" style="margin-top:0">
     <div class="time">
       <b>9:05 am</b><span>Tuesday to Saturday: checks yesterday's close and sends your signals. Saturday's message is for Monday's open.</span>
-      <b>10:35 am</b><span>A backup run, only if the morning prices were late. Otherwise it stays quiet.</span>
-      <b>8:20 pm</b><span>Every day: reads your replies, confirms them and updates this site.</span>
+      <b>9:35 to 11:05</b><span>Backup runs in case GitHub delayed a run or prices were late. They stay quiet if the morning message already went out.</span>
+      <b>8:20 pm</b><span>Every day: confirms your replies, reminds you about signals you haven't reported a price for, and updates this site.</span>
     </div>
-    <p class="muted" style="font-size:13px;margin:8px 0 0">Philippine time. GitHub sometimes starts runs 5 to 30 minutes late.</p>
+    <p class="muted" style="font-size:13px;margin:8px 0 0">Philippine time. GitHub sometimes starts runs 5 to 30 minutes late.
+      If a run fails you get a "⚠ run failed" message, and a morning message that only arrives in the evening starts with a "Late update" warning.</p>
   </div>
   <h3 style="margin-top:16px">Each morning run</h3>
   <ol class="steps">
@@ -86,7 +87,9 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
     <div class="rule"><span class="tag" style="background:var(--down-bg);color:var(--down)">SELL message</span>
       <p style="margin:0">Close that position in the MT5 app. Reply <code>filled US100 20150</code> with your price if you like.</p></div>
     <div class="rule"><span class="tag" style="background:var(--sub);color:var(--muted)">Working out lots</span>
-      <p style="margin:0">lots = size per point ÷ the index's contract size (in MT5: hold the symbol → <b>Specification</b>), rounded down. Example: $0.71 per point, contract size 1 → 0.7 lots.</p></div>
+      <p style="margin:0">Once your broker's contract specs are in the settings, the message gives the exact volume. Until then: lots = size per point ÷ the index's contract size (in MT5: hold the symbol → <b>Specification</b>), rounded down.</p></div>
+    <div class="rule"><span class="tag" style="background:var(--warn-line);color:var(--bg)">Warnings</span>
+      <p style="margin:0"><b>Borderline</b> means a signal only just met a rule, and <b>close call</b> means it only just missed one. The bot's prices can differ slightly from your broker's, so check your MT5 daily chart for those.</p></div>
   </div>
   <div class="tbl" style="margin-top:12px">
     <table>

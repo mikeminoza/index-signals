@@ -2,9 +2,12 @@ name: Daily signals
 
 on:
   schedule:
-    - cron: "5 1 * * *"    # 09:05 Philippine time: after the daily close, before you trade
-    - cron: "35 2 * * *"   # 10:35: retry if the morning prices were late (sends nothing if already done)
-    - cron: "20 12 * * *"  # 20:20: reads your replies
+    # Philippine time = UTC + 8. Repeat runs are safe: a run with nothing new stays quiet.
+    - cron: "5 1 * * *"    # 09:05: after the daily close, before you trade
+    - cron: "35 1 * * *"   # 09:35: backup in case GitHub delayed or skipped the first
+    - cron: "35 2 * * *"   # 10:35: retry if the morning prices were late
+    - cron: "5 3 * * *"    # 11:05: last morning try
+    - cron: "20 12 * * *"  # 20:20: reads your replies, sends reminders
   workflow_dispatch:
 
 permissions:
@@ -34,5 +37,17 @@ jobs:
           git add state docs
           if ! git diff --cached --quiet; then
             git commit -m "Signal bot: update journal"
-            git push
+            # Someone else may have pushed meanwhile (for example a settings change): replay on top
+            git push || (git pull --rebase && git push)
           fi
+
+      - name: Tell me on Telegram if this run failed
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=⚠ IndexPullback: today's bot run failed, so you may have missed a signal. The bot tries again at the next scheduled time. Details: ${RUN_URL}"

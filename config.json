@@ -12,11 +12,11 @@
   "utc_offset_hours": 8,
   "timezone_label": "PH time",
   "markets": [
-    {"code": "USA500IDXUSD", "name": "US500", "ccy": "USD", "spread_pct": 0.015},
-    {"code": "USATECHIDXUSD", "name": "US100", "ccy": "USD", "spread_pct": 0.015},
-    {"code": "USA30IDXUSD", "name": "US30", "ccy": "USD", "spread_pct": 0.015},
-    {"code": "DEUIDXEUR", "name": "GER40", "ccy": "EUR", "spread_pct": 0.015},
-    {"code": "GBRIDXGBP", "name": "UK100", "ccy": "GBP", "spread_pct": 0.015},
-    {"code": "JPNIDXJPY", "name": "JP225", "ccy": "JPY", "spread_pct": 0.02}
+    {"code": "USA500IDXUSD", "name": "US500", "ccy": "USD", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
+    {"code": "USATECHIDXUSD", "name": "US100", "ccy": "USD", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
+    {"code": "USA30IDXUSD", "name": "US30", "ccy": "USD", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
+    {"code": "DEUIDXEUR", "name": "GER40", "ccy": "EUR", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
+    {"code": "GBRIDXGBP", "name": "UK100", "ccy": "GBP", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
+    {"code": "JPNIDXJPY", "name": "JP225", "ccy": "JPY", "spread_pct": 0.02, "contract_size": null, "min_lot": null, "lot_step": null}
   ]
 }

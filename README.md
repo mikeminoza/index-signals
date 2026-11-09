@@ -10,8 +10,11 @@ It runs free on GitHub (GitHub Actions + GitHub Pages). Your PC can stay off.
 | When (Philippine time) | What happens |
 |---|---|
 | About 9:05 am, Tue-Sat | Morning message with the day's signals (Saturday's covers Monday's open) |
-| About 10:35 am | Retry, only if the morning prices were late (otherwise it stays quiet) |
-| About 8:20 pm, daily | Reads your replies and confirms them; updates the calendar |
+| 9:35, 10:35 and 11:05 am | Backups in case GitHub delayed a run or prices were late. They stay quiet if the morning message already went out |
+| About 8:20 pm, daily | Confirms your replies and reminds you about signals you haven't reported a price for |
+
+If a run fails, the bot sends "⚠ today's bot run failed" with a link. If the morning runs all
+missed and the evening run catches up, its message starts with a "Late update" warning.
 
 GitHub sometimes starts scheduled jobs a few minutes late.
 
@@ -93,14 +96,27 @@ runs by itself.
 
 ### Working out the volume (lots)
 
-The message gives a size **per point**, for example `Size ≈ $0.71 per point`. In MT5, open
-the index's **Specification** (Market Watch → hold the symbol → Specification) and find
-the **contract size**: the money per point for 1 lot (often 1). Then:
+Once your broker's contract specs are in `config.json` (see Settings), the message gives the
+exact volume, for example `Volume 0.7 lots (risk ≈ $50 per normal day)`, and a signal that
+would be below your broker's minimum volume is marked as skipped.
+
+Until then the message gives a size **per point**, for example `Size ≈ $0.71 per point`. In
+MT5, open the index's **Specification** (Market Watch → hold the symbol → Specification) and
+find the **contract size**: the money per point for 1 lot (often 1). Then:
 
 > lots = size per point ÷ contract size, rounded **down** to the broker's volume step
 
 Example: $0.71 per point, contract size 1 → 0.7 lots. If the result is below the minimum
 volume, skip the trade or use a larger demo balance.
+
+### Warnings in the message
+
+- **⚠ Borderline**: a signal that only just met a rule (for example RSI 4.6 against the 5
+  level). Your broker's prices can differ slightly from the bot's, so check your MT5 chart.
+- **Close calls**: no signal on the bot's data, but close enough that your broker's chart
+  might show one. Check it before doing anything.
+- **Monthly check**: once a month, reply `balance AMOUNT` with your demo balance so the sizes
+  match your account.
 
 ## Replies the bot understands
 
@@ -125,9 +141,50 @@ The bot reads replies at about 9:05 am and 8:20 pm and confirms what it recorded
 | `stop_atr` | 3.0 | stop distance in ATRs |
 | `exit_rsi` | 70 | sell when the 2-day RSI closes above this (`null` = sell on a close above the 5-day average instead) |
 | `markets[].name` | US500 ... | the names used in messages and replies; change them to your broker's (for example `NAS100`) |
+| `markets[].contract_size` | `null` | from your broker's Specification: money per point for 1 lot. Set it to get exact lots in the messages |
+| `markets[].min_lot` | `null` | the broker's minimum volume for that index |
+| `markets[].lot_step` | `null` | the broker's volume step (for example 0.1 or 0.01) |
+
+To change a setting, open `config.json` on GitHub, click the pencil icon, edit and commit.
+The next run uses it.
 
 Change the rules themselves only if you understand the backtest: the numbers above are
 what was tested.
+
+## Optional: start the bot at exactly 9:05 with cron-job.org
+
+GitHub's own timer can start runs late or skip them. A free outside timer can start the bot
+on time instead. The GitHub timer keeps running as a backup, and extra runs are harmless.
+
+**1. Create a limited GitHub token**
+1. On GitHub, click your photo → **Settings** → **Developer settings** → **Personal access
+   tokens** → **Fine-grained tokens** → **Generate new token**.
+2. Name: `cron-job index-signals`. Expiration: 1 year (you can renew it later).
+3. Repository access: **Only select repositories** → `index-signals`.
+4. Permissions → Repository permissions → **Actions: Read and write**. Leave everything else
+   at "No access".
+5. Click **Generate token** and copy it. GitHub only shows it once.
+
+This token can only start or view this repository's workflow runs. It can't read your
+secrets or change your code. You can delete it any time on the same page.
+
+**2. Create the timer on cron-job.org**
+1. Sign up free at cron-job.org. In your account settings, set the time zone to
+   **Asia/Manila**.
+2. **Create cronjob**:
+   - Title: `IndexPullback morning`
+   - URL: `https://api.github.com/repos/<your-username>/index-signals/actions/workflows/daily.yml/dispatches`
+   - Schedule: custom, **Tuesday to Saturday at 09:05**
+3. Under **Advanced**:
+   - Request method: **POST**
+   - Headers:
+     - `Accept: application/vnd.github+json`
+     - `Authorization: Bearer <your token>`
+     - `X-GitHub-Api-Version: 2022-11-28`
+   - Request body: `{"ref":"main"}`
+4. Save, then click **Test run**. A good result is **HTTP 204**, and a new run appears in your
+   repository's **Actions** tab within a few seconds.
+5. Optional: a second job, every day at **20:20**, for your evening replies and reminders.
 
 ## Good to know
 
