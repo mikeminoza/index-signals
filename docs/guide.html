@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.lead{font-size:15px;color:var(--muted);margin:6px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.rule{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.rule .tag{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:1px 8px;margin-bottom:6px}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:1px 8px;white-space:nowrap}
+td.wrap{white-space:normal;text-align:left;min-width:200px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.steps li{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--open-bg);color:var(--open);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.time{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px}
+.time b{white-space:nowrap}
+.note{border-left:3px solid var(--warn-line);background:var(--card);border-radius:0;padding:10px 14px;margin-top:12px;font-size:14px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--sub);border-radius:5px;padding:1px 5px}
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Pages"><a href="index.html">Calendar</a><a href="guide.html" aria-current="page">How it works</a></nav>
+  <h1>How it works</h1>
+  <p class="lead">What the bot trades, the rules it follows, how it sends you signals, and what to expect.</p>
+
+  <h2>Market watch</h2>
+  <p class="muted" id="watch-note" style="font-size:13px"></p>
+  <div class="tbl" id="watch"></div>
+
+  <h2>The strategy in one minute</h2>
+  <p>It buys a stock index after a sharp short-term drop, but only while the index is in a long-term uptrend, and
+    sells once it has bounced. It's Larry Connors' 2-day RSI rule, published in 2008, checked once a day on each
+    index's daily chart.</p>
+  <div class="grid" id="rules"></div>
+
+  <h2>What to trade</h2>
+  <p>Six stock indices, all at once. Your broker may use slightly different names for the same index.</p>
+  <div class="tbl">
+    <table>
+      <tr><th>In messages</th><th style="text-align:left">What it is</th><th style="text-align:left">Common MT5 names</th><th>Currency</th></tr>
+      <tr><td><b>US500</b></td><td class="wrap">S&amp;P 500: the 500 largest US companies</td><td class="wrap">US500, SPX500, SP500, US500.cash</td><td>USD</td></tr>
+      <tr><td><b>US100</b></td><td class="wrap">Nasdaq 100: the 100 largest US tech-heavy companies</td><td class="wrap">US100, NAS100, USTEC, NDX100</td><td>USD</td></tr>
+      <tr><td><b>US30</b></td><td class="wrap">Dow Jones: 30 large US companies</td><td class="wrap">US30, DJ30, WS30, US30.cash</td><td>USD</td></tr>
+      <tr><td><b>GER40</b></td><td class="wrap">DAX: Germany's 40 largest companies</td><td class="wrap">GER40, DE40, DAX40</td><td>EUR</td></tr>
+      <tr><td><b>UK100</b></td><td class="wrap">FTSE 100: the UK's 100 largest companies</td><td class="wrap">UK100, FTSE100</td><td>GBP</td></tr>
+      <tr><td><b>JP225</b></td><td class="wrap">Nikkei 225: Japan's leading index</td><td class="wrap">JP225, JPN225, NI225</td><td>JPY</td></tr>
+    </table>
+  </div>
+  <div class="note">
+    <b>Not currency pairs, gold or oil.</b> The same rules lost money on all seven major currency pairs
+    (−1.1% a year together), barely moved on gold (+0.1% a year) and lost on oil (−0.2% a year).
+    Stock indices rise over time and their sharp dips tend to bounce; currencies don't have that pull.
+    Adding seven more indices (France, Europe 50, Australia, Hong Kong, Spain, Switzerland, Netherlands)
+    also made results worse, because most of them fall together with the ones already traded.
+  </div>
+
+  <h2>How the bot works</h2>
+  <div class="panel" style="margin-top:0">
+    <div class="time">
+      <b>9:05 am</b><span>Tuesday to Saturday: checks yesterday's close and sends your signals. Saturday's message is for Monday's open.</span>
+      <b>10:35 am</b><span>A backup run, only if the morning prices were late. Otherwise it stays quiet.</span>
+      <b>8:20 pm</b><span>Every day: reads your replies, confirms them and updates this site.</span>
+    </div>
+    <p class="muted" style="font-size:13px;margin:8px 0 0">Philippine time. GitHub sometimes starts runs 5 to 30 minutes late.</p>
+  </div>
+  <h3 style="margin-top:16px">Each morning run</h3>
+  <ol class="steps">
+    <li><span class="num">1</span><div><b>Wakes up on GitHub</b><div class="muted">A free cloud computer runs the bot for a minute or two. Your PC can stay off.</div></div></li>
+    <li><span class="num">2</span><div><b>Reads your Telegram replies</b><div class="muted">Prices you filled at, signals you skipped, notes, a new balance.</div></div></li>
+    <li><span class="num">3</span><div><b>Downloads yesterday's daily prices</b><div class="muted">Open, high, low and close for the six indices, from Dukascopy's free datafeed (the same data as the backtest).</div></div></li>
+    <li><span class="num">4</span><div><b>Works out the chart indicators</b><div class="muted">The 200-day average, the 2-day RSI and the ATR (the average daily range), the same as on a daily MT5 chart.</div></div></li>
+    <li><span class="num">5</span><div><b>Applies the rules and updates the journal</b><div class="muted">Yesterday's signals become trades, stop losses hit during the day are recorded, and new buy or sell signals are found.</div></div></li>
+    <li><span class="num">6</span><div><b>Sends your Telegram message</b><div class="muted">What to buy or sell with the stop loss and size, what you're holding, or "No action today".</div></div></li>
+    <li><span class="num">7</span><div><b>Saves everything and updates this site</b><div class="muted">The journal, trade history and calendar are saved in your GitHub repository.</div></div></li>
+  </ol>
+  <p class="muted" style="font-size:13px;margin-top:10px">It doesn't connect to MT5, place trades or watch prices during the day. The only real-time protection is the stop loss you set in MT5, which your broker watches around the clock.</p>
+
+  <h2>Your routine</h2>
+  <div class="grid">
+    <div class="rule"><span class="tag" style="background:var(--up-bg);color:var(--up)">BUY message</span>
+      <p style="margin:0">In the MT5 app, open the index, tap <b>Trade</b>, choose <b>Buy by market</b>, enter the volume and the <b>stop loss</b> from the message. Then reply <code>filled US100 19940</code> with your price.</p></div>
+    <div class="rule"><span class="tag" style="background:var(--down-bg);color:var(--down)">SELL message</span>
+      <p style="margin:0">Close that position in the MT5 app. Reply <code>filled US100 20150</code> with your price if you like.</p></div>
+    <div class="rule"><span class="tag" style="background:var(--sub);color:var(--muted)">Working out lots</span>
+      <p style="margin:0">lots = size per point ÷ the index's contract size (in MT5: hold the symbol → <b>Specification</b>), rounded down. Example: $0.71 per point, contract size 1 → 0.7 lots.</p></div>
+  </div>
+  <div class="tbl" style="margin-top:12px">
+    <table>
+      <tr><th>Reply</th><th style="text-align:left">What it does</th></tr>
+      <tr><td><code>filled US100 19940</code></td><td class="wrap">Records the price you actually got, for a buy or a sell</td></tr>
+      <tr><td><code>skip US100</code></td><td class="wrap">You didn't take the signal. It shows as skipped on the calendar</td></tr>
+      <tr><td><code>note US100 entered late</code></td><td class="wrap">Adds a note to a trade (or <code>note text</code> for today)</td></tr>
+      <tr><td><code>balance 10250</code></td><td class="wrap">Sizes new signals from this balance</td></tr>
+      <tr><td><code>help</code></td><td class="wrap">Lists the replies</td></tr>
+    </table>
+  </div>
+  <p class="muted" style="font-size:13px;margin-top:8px">Entering an hour or two after the message is fine: on 2026's trades it cost about 0.05% per trade on average. Skipping signals costs far more.</p>
+
+  <h2>What to expect</h2>
+  <div class="cards" style="margin-top:0">
+    <div class="card"><div class="k">Per year (backtest)</div><div class="v up">+4.5%</div></div>
+    <div class="card"><div class="k">Worst drop</div><div class="v">13%</div></div>
+    <div class="card"><div class="k">Trades won</div><div class="v">75%</div></div>
+    <div class="card"><div class="k">Trades</div><div class="v" style="font-size:16px">2 to 3 a month</div></div>
+  </div>
+  <p>Tested on July 2014 to October 2026 with realistic costs and 0.5% risk per trade. Treat these numbers as a guide, not a promise:</p>
+  <ul style="margin:0 0 10px;padding-left:20px">
+    <li>Results depend on the market: about +2% a year in 2014-2020 and about +7% a year in 2021-2026.</li>
+    <li>Some years are flat or slightly down. The worst full year was about −5%.</li>
+    <li>Simply holding an S&amp;P 500 index fund made more (+11.5% a year), with much bigger drops (−33%).</li>
+    <li>Your broker's real spreads and fees decide a lot, because the average trade is only about +0.5%.</li>
+  </ul>
+  <div class="tbl">
+    <table>
+      <tr><th>How the money was used, 2014-2026</th><th>Per year</th><th>Worst drop</th></tr>
+      <tr><td>Strategy only</td><td>+4.5%</td><td>13%</td></tr>
+      <tr><td>Strategy, idle cash in a money-market fund</td><td>+6.4%</td><td>10%</td></tr>
+      <tr><td>50% S&amp;P 500 index fund + 50% strategy</td><td>+9.2%</td><td>21%</td></tr>
+      <tr><td>100% S&amp;P 500 index fund</td><td>+11.5%</td><td>33%</td></tr>
+    </table>
+  </div>
+  <p class="muted" style="font-size:12px;margin-top:28px">A research tool for demo testing, not financial advice. Run it on demo for 6 to 12 months before risking real money, and then only an amount you can afford to lose.</p>
+</main>
+<script src="data.js"></script>
+<script>
+(function(){
+const T = window.TRACKER;
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, text) => { const e = document.createElement(tag); Object.assign(e, attrs || {}); if (text != null) e.textContent = text; return e; };
+const fmt = v => v == null ? "–" : v.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+const R = Object.assign({rsi_below: 5, exit_rsi: 70, exit_sma: 5, trend_sma: 200, stop_atr: 3, atr_period: 20, risk_pct: 0.5, max_gross: 2}, (T && T.rules) || {});
+const sell = R.exit_rsi ? `The 2-day RSI closes above ${R.exit_rsi}: the bounce has happened. The bot sells at the next open.`
+                        : `The close goes back above the ${R.exit_sma}-day average. The bot sells at the next open.`;
+[
+  ["Buy", "var(--up-bg)", "var(--up)", `The daily close is above the ${R.trend_sma}-day average (uptrend) and the 2-day RSI closes below ${R.rsi_below} (a sharp dip). The bot buys at the next open.`],
+  ["Sell", "var(--down-bg)", "var(--down)", sell],
+  ["Protect", "var(--open-bg)", "var(--open)", `Every trade gets a stop loss ${R.stop_atr} × ATR(${R.atr_period}) below the signal close, held by your broker around the clock.`],
+  ["Size", "var(--sub)", "var(--muted)", `Each trade risks about ${R.risk_pct}% of your balance per normal daily move. All open trades together stay under ${R.max_gross}× your balance.`],
+].forEach(([name, bg, fg, text]) => {
+  const d = el("div", {className: "rule"});
+  const t = el("span", {className: "tag"}, name); t.style.background = bg; t.style.color = fg;
+  d.append(t, el("p", {style: "margin:0"}, text));
+  $("rules").append(d);
+});
+
+const STATUS = {
+  watching: ["Watching", "var(--sub)", "var(--muted)"], downtrend: ["Downtrend", "var(--down-bg)", "var(--down)"],
+  holding: ["Holding", "var(--open-bg)", "var(--open)"], "buy-next": ["Buy signal", "var(--up-bg)", "var(--up)"],
+  "sell-next": ["Sell signal", "var(--down-bg)", "var(--down)"],
+};
+if (!T || !T.watch || !T.watch.length) {
+  $("watch-note").textContent = "The live table appears after the bot's next run.";
+} else {
+  const latest = T.watch.map(w => w.date).sort().pop();
+  $("watch-note").textContent = `Based on the daily close of ${latest}. Updated ${T.generated}.`;
+  const tb = el("table"), head = el("tr");
+  ["Index", "Last close", `${R.trend_sma}-day avg`, "2-day RSI", "Status", "What happens next"].forEach((h, i) => {
+    const th = el("th", null, h); if (i >= 4) th.style.textAlign = "left"; head.append(th);
+  });
+  tb.append(head);
+  T.watch.forEach(w => {
+    const r = el("tr");
+    const [label, bg, fg] = STATUS[w.status] || [w.status, "var(--sub)", "var(--muted)"];
+    const pill = el("span", {className: "pill"}, label); pill.style.background = bg; pill.style.color = fg;
+    const st = el("td", {style: "text-align:left"}); st.append(pill);
+    const rsiCell = el("td", null, w.rsi == null ? "–" : w.rsi.toFixed(1));
+    if (w.rsi != null && w.rsi < R.rsi_below) rsiCell.className = "up";
+    if (R.exit_rsi && w.rsi != null && w.rsi > R.exit_rsi) rsiCell.className = "down";
+    r.append(el("td", null, w.name), el("td", null, fmt(w.close)), el("td", null, fmt(w.trend)), rsiCell, st,
+             el("td", {className: "wrap muted"}, w.waiting));
+    tb.append(r);
+  });
+  $("watch").append(tb);
+}
+})();
+</script>
+</body>
+</html>

@@ -4,31 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trade calendar</title>
+<link rel="stylesheet" href="style.css">
 <style>
-:root{
-  --bg:#f7f6f2;--card:#ffffff;--sub:#efede6;--text:#1f1e1b;--muted:#6b6a64;--line:rgba(0,0,0,.1);--line2:rgba(0,0,0,.18);
-  --up:#2f6b12;--up-bg:#e3efd5;--down:#a32d2d;--down-bg:#f7dede;--open:#185fa5;--open-bg:#e2eefa;--warn:#854f0b;--warn-line:#d99a3c;
-  --accent:#185fa5;
-}
-@media (prefers-color-scheme:dark){:root{
-  --bg:#171715;--card:#21211e;--sub:#2a2a27;--text:#ecebe6;--muted:#a3a29b;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);
-  --up:#a4d27a;--up-bg:#26391a;--down:#f09595;--down-bg:#4a1f1f;--open:#85b7eb;--open-bg:#163049;--warn:#efb35a;--warn-line:#b9822c;
-  --accent:#85b7eb;
-}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
-h1{font-size:20px;font-weight:600;margin:0}
-h2{font-size:16px;font-weight:600;margin:28px 0 10px}
-.muted{color:var(--muted)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
-.card{background:var(--sub);border-radius:10px;padding:10px 12px}
-.card .k{font-size:12px;color:var(--muted)}
-.card .v{font-size:20px;font-weight:600}
-.up{color:var(--up)}.down{color:var(--down)}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px}
-button{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:6px 12px;cursor:pointer}
-button:hover{background:var(--sub)}
 .cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(0,.85fr);gap:6px}
 .hd{font-size:12px;color:var(--muted);padding:0 4px}
 .day{min-height:84px;text-align:left;padding:6px 7px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:flex;flex-direction:column;gap:2px;overflow:hidden}
@@ -42,14 +20,8 @@ button:hover{background:var(--sub)}
 .wk .p{font-size:15px;font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:10px}
 .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:14px}
 .item{padding:8px 0;border-top:1px solid var(--line)}
 .item:first-of-type{border-top:0}
-.tbl{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-th:first-child,td:first-child{text-align:left}
-th{color:var(--muted);font-weight:500}
 svg text{fill:var(--muted);font-size:11px}
 @media (max-width:560px){
   .day,.wk{min-height:62px;padding:4px 5px}
@@ -63,6 +35,7 @@ svg text{fill:var(--muted);font-size:11px}
 </head>
 <body>
 <main>
+  <nav class="nav" aria-label="Pages"><a href="index.html" aria-current="page">Calendar</a><a href="guide.html">How it works</a></nav>
   <div class="bar" style="margin:0">
     <h1>Trade calendar</h1>
     <span class="muted" id="updated" style="font-size:12px"></span>

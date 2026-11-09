@@ -505,7 +505,7 @@ def compose(j, cfg, ev, today_local, acks, problems, page_url):
             actions.append(f"🟢 <b>BUY {m['name']}</b> {at}. Stop loss {q['stop']:,.2f}. "
                            f"Size ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut} (RSI {q['rsi']:.1f})")
         else:
-            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q['why']})")
+            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q.get('why', 'the sell rule triggered')})")
     for kind, t in ev:
         if kind == "stopped":
             actions.append(f"⛔ {t['name']} hit its stop at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
@@ -546,7 +546,38 @@ def compose(j, cfg, ev, today_local, acks, problems, page_url):
     return "\n".join(x for x in lines if x is not None)
 
 
-def build_page(j, cfg, now_local, path):
+def market_watch(j, cfg, data, until):
+    """Each index's latest complete close against the rules, and what the bot is waiting for."""
+    out = []
+    for m in cfg["markets"]:
+        ind = data[m["code"]]
+        i = bisect_right(ind["dates"], until) - 1
+        if i < 0 or ind["dates"][i] >= until:
+            i -= 1
+        if i < 0:
+            continue
+        c, trend, r = ind["c"][i], ind["trend"][i], ind["rsi"][i]
+        q, p = j["pending"].get(m["code"]), j["positions"].get(m["code"])
+        if q is not None:
+            status = "buy-next" if q["side"] == "buy" else "sell-next"
+            waiting = "Buy at the next open" if q["side"] == "buy" else "Sell at the next open"
+        elif p is not None:
+            status = "holding"
+            waiting = (f"Sells when the 2-day RSI closes above {cfg['exit_rsi']:g}" if cfg.get("exit_rsi")
+                       else "Sells on a close above the 5-day average")
+        elif trend is not None and c > trend:
+            status = "watching"
+            waiting = f"Buys if the 2-day RSI closes below {cfg['rsi_below']:g}"
+        else:
+            status = "downtrend"
+            waiting = "No buys while it's below the 200-day average"
+        out.append(dict(name=m["name"], date=ind["dates"][i], close=round(c, 2),
+                        trend=round(trend, 2) if trend is not None else None,
+                        rsi=round(r, 1) if r is not None else None, status=status, waiting=waiting))
+    return out
+
+
+def build_page(j, cfg, now_local, path, watch=None):
     days = {}
 
     def add(day, item, pnl=0.0):
@@ -586,7 +617,7 @@ def build_page(j, cfg, now_local, path):
         name = next(m["name"] for m in cfg["markets"] if m["code"] == code)
         when = next_weekday(q["signal_date"]).isoformat()
         text = (f"Buy at the open. Stop {q['stop']:,.2f}. RSI {q['rsi']:.1f}." if q["side"] == "buy"
-                else f"Sell at the open: {q['why']}.")
+                else f"Sell at the open: {q.get('why', 'the sell rule triggered')}.")
         add(when, dict(kind="buy-next" if q["side"] == "buy" else "sell-next", name=name, text=text))
     for n in j["notes"]:
         add(n["date"], dict(kind="note", name=n.get("name"), text=n["text"]))
@@ -608,7 +639,10 @@ def build_page(j, cfg, now_local, path):
                start_equity=cfg["start_equity"], equity=round(cfg["start_equity"] + s_mine["total"], 2),
                mine=s_mine, all=s_all, verdict=verdict(s_mine), expect=dict(win=EXPECT_WIN, avg=EXPECT_AVG),
                days={d: dict(pnl=round(v["pnl"], 2), items=v["items"]) for d, v in days.items()},
-               open=open_pos, trades=trades, curve=curve)
+               open=open_pos, trades=trades, curve=curve, watch=watch or [],
+               rules={k: cfg.get(k) for k in ("rsi_below", "exit_rsi", "exit_sma", "trend_sma", "stop_atr",
+                                               "atr_period", "risk_pct", "max_gross", "start_equity")},
+               markets=[dict(name=m["name"], ccy=m["ccy"]) for m in cfg["markets"]])
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write("window.TRACKER = " + json.dumps(out, ensure_ascii=False) + ";\n")
@@ -704,7 +738,7 @@ def main():
     with open(jpath, "w", encoding="utf-8") as f:
         json.dump(j, f, indent=1)
     write_trades_csv(j, os.path.join(args.state, "trades.csv"))
-    build_page(j, cfg, now_local, os.path.join(args.docs, "data.js"))
+    build_page(j, cfg, now_local, os.path.join(args.docs, "data.js"), market_watch(j, cfg, data, today.isoformat()))
     print(f"processed {len(processed)} day(s), {len(ev)} event(s), {len(acks)} repl(ies)")
 
 
