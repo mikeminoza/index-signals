@@ -9,8 +9,9 @@ Each run:
   4. sends the morning message and rebuilds the calendar page data
 
 Rules (Connors' RSI(2), as backtested 2014-2026): buy when the daily close is
-above the 200-day SMA and the 2-day RSI is below 5; sell after a close above
-the 5-day SMA; a stop 3 x ATR(20) below the signal close protects every trade.
+above the 200-day SMA and the 2-day RSI is below 5; sell after the 2-day RSI
+closes above 70 (exit_rsi; set it to null to sell on a close above the 5-day
+SMA instead); a stop 3 x ATR(20) below the signal close protects every trade.
 Fills are assumed at the next day's open plus half the spread, unless you
 report your own price.
 
@@ -36,7 +37,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 FX_PAIRS = {"EUR": ("EURUSD", False), "GBP": ("GBPUSD", False), "JPY": ("USDJPY", True)}
 DIVISOR = {"EURUSD": 100000, "GBPUSD": 100000}  # everything else here is stored in thousandths
 SYMBOL = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}
-EXPECT_WIN, EXPECT_AVG = 75.0, 0.46  # backtest 2014-2026: win rate %, average trade %
+EXPECT_WIN, EXPECT_AVG = 75.0, 0.53  # backtest 2014-2026 with the RSI > 70 exit: win rate %, average trade %
 DATAFEED = ("https://datafeed.dukascopy.com/datafeed", "http://datafeed.dukascopy.com/datafeed")
 
 HELP = ("Replies I understand (I read them twice a day):\n"
@@ -306,6 +307,7 @@ def step(j, cfg, m, ind, i, day, conv, ev):
         ev.append(("bought", pos))
     elif pend and pend["side"] == "sell" and pos is not None:
         fill = pend.get("user_fill")
+        pos["exit_why"] = pend.get("why", "closed above the 5-day average")
         close_trade(j, code, day, fill or o * (1 - half), "you" if fill else "assumed", "signal", rate, ev)
         pos = None
 
@@ -323,8 +325,14 @@ def step(j, cfg, m, ind, i, day, conv, ev):
     # Signals on today's close, for the next open
     a, trend, ex, r = ind["atr"][i], ind["trend"][i], ind["exit"][i], ind["rsi"][i]
     if pos is not None:
-        if ex is not None and c > ex:
-            j["pending"][code] = dict(side="sell", id=pos["id"], signal_date=day, close=c, level=ex, user_fill=None)
+        exit_rsi = cfg.get("exit_rsi")
+        why = None
+        if exit_rsi and r is not None and r > exit_rsi:
+            why = f"the 2-day RSI closed at {r:.1f}, above {exit_rsi:g}"
+        elif not exit_rsi and ex is not None and c > ex:
+            why = f"the close {c:,.2f} is above the 5-day average {ex:,.2f}"
+        if why:
+            j["pending"][code] = dict(side="sell", id=pos["id"], signal_date=day, close=c, why=why, user_fill=None)
     elif None not in (a, trend, r) and a > 0 and c > trend and r < cfg["rsi_below"]:
         equity = sizing_equity(j, cfg)
         wanted = equity * cfg["risk_pct"] / 100 / (a * rate)
@@ -497,8 +505,7 @@ def compose(j, cfg, ev, today_local, acks, problems, page_url):
             actions.append(f"🟢 <b>BUY {m['name']}</b> {at}. Stop loss {q['stop']:,.2f}. "
                            f"Size ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut} (RSI {q['rsi']:.1f})")
         else:
-            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} (close {q['close']:,.2f} is above the "
-                           f"5-day average {q['level']:,.2f})")
+            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q['why']})")
     for kind, t in ev:
         if kind == "stopped":
             actions.append(f"⛔ {t['name']} hit its stop at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
@@ -563,11 +570,12 @@ def build_page(j, cfg, now_local, path):
     for t in j["trades"]:
         opened(t)
         holds(t, t["exit_date"])
-        why = "hit the stop" if t["reason"] == "stop" else "closed above the 5-day average"
+        why = ("it hit the stop loss" if t["reason"] == "stop"
+               else t.get("exit_why", "the close was above the 5-day average"))
         src = "your price" if t["exit_source"] == "you" else "assumed"
         add(t["exit_date"], dict(kind="stop" if t["reason"] == "stop" else "sell", name=t["name"],
                                  ret=round(t["ret_pct"], 2), pnl=round(t["pnl"], 2) if t["taken"] else None,
-                                 text=f"Sold at {t['exit']:,.2f} ({src}) after it {why}. "
+                                 text=f"Sold at {t['exit']:,.2f} ({src}) because {why}. "
                                       f"Held {t['days_held']} days." + ("" if t["taken"] else " Not taken by you.")
                                       + "".join(f" Note: {n}" for n in t.get("notes", []))),
             t["pnl"] if t["taken"] else 0.0)
@@ -578,7 +586,7 @@ def build_page(j, cfg, now_local, path):
         name = next(m["name"] for m in cfg["markets"] if m["code"] == code)
         when = next_weekday(q["signal_date"]).isoformat()
         text = (f"Buy at the open. Stop {q['stop']:,.2f}. RSI {q['rsi']:.1f}." if q["side"] == "buy"
-                else f"Sell at the open: close {q['close']:,.2f} above the 5-day average.")
+                else f"Sell at the open: {q['why']}.")
         add(when, dict(kind="buy-next" if q["side"] == "buy" else "sell-next", name=name, text=text))
     for n in j["notes"]:
         add(n["date"], dict(kind="note", name=n.get("name"), text=n["text"]))

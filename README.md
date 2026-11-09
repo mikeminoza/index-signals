@@ -21,11 +21,13 @@ Connors' RSI(2) pullback, as backtested on 2014-2026 data:
 
 - **Buy** an index at the open when its last daily close is above its 200-day average
   (uptrend) and its 2-day RSI is below 5 (a sharp dip).
-- **Sell** at the open after a daily close above its 5-day average.
+- **Sell** at the open after the 2-day RSI closes above 70 (the bounce has happened).
 - **Stop loss** 3 x ATR(20) below the signal close, placed with the order.
 - **Size** so a normal day's move (1 ATR) is 0.5% of your balance.
 
-Backtest: about +3.7% a year, 12% worst drawdown, 75% of trades won. Demo first.
+Backtest (July 2014 - October 2026): about +4.5% a year, 13% worst drawdown, 75% of
+trades won. The RSI-above-70 exit was chosen on 2014-2020 data and then held up on
+2021-2026. Demo first.
 
 ---
 
@@ -119,6 +121,7 @@ The bot reads replies at about 9:05 am and 8:20 pm and confirms what it recorded
 | `risk_pct` | 0.5 | % of balance per normal daily move, per index |
 | `max_gross` | 2.0 | cap on total exposure, as a multiple of balance |
 | `stop_atr` | 3.0 | stop distance in ATRs |
+| `exit_rsi` | 70 | sell when the 2-day RSI closes above this (`null` = sell on a close above the 5-day average instead) |
 | `markets[].name` | US500 ... | the names used in messages and replies; change them to your broker's (for example `NAS100`) |
 
 Change the rules themselves only if you understand the backtest: the numbers above are

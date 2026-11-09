@@ -4,6 +4,7 @@
   "max_gross": 2.0,
   "stop_atr": 3.0,
   "rsi_below": 5,
+  "exit_rsi": 70,
   "exit_sma": 5,
   "trend_sma": 200,
   "atr_period": 20,

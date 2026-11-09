@@ -100,7 +100,7 @@ svg text{fill:var(--muted);font-size:11px}
   <p class="muted" style="font-size:12px;margin-top:28px">
     Results use your reported prices where you replied "filled", otherwise the day's opening price plus half the
     typical spread, minus an estimate of overnight financing. "Vs backtest" compares your trades with the
-    2014-2026 backtest: about 75% winners and +0.46% per trade on average.
+    2014-2026 backtest: about 75% winners and +0.5% per trade on average.
   </p>
 </main>
 <script src="data.js"></script>
@@ -266,7 +266,7 @@ if (T.trades.length) {
       el("td", null, t.entry.toFixed(2)), el("td", null, t.exit.toFixed(2)),
       el("td", {className: t.ret >= 0 ? "up" : "down"}, pct(t.ret)),
       el("td", {className: t.pnl >= 0 ? "up" : "down"}, t.taken ? money(t.pnl) : "–"),
-      el("td", null, String(t.days)), el("td", null, t.reason === "stop" ? "stop" : "5-day avg"));
+      el("td", null, String(t.days)), el("td", null, t.reason === "stop" ? "stop loss" : "sell signal"));
     tb.append(r);
   });
   $("history").append(tb);
