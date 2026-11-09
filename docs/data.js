@@ -1,1 +1,1 @@
-window.TRACKER = null;
+window.TRACKER = {"generated": "09 Nov 2026 08:41 PH time", "start_date": "2026-11-06", "start_equity": 10000, "equity": 10000, "mine": {"n": 0, "wins": 0, "win_rate": 0.0, "avg_ret": 0.0, "total": 0, "max_dd": 0.0}, "all": {"n": 0, "wins": 0, "win_rate": 0.0, "avg_ret": 0.0, "total": 0, "max_dd": 0.0}, "verdict": "Too early to judge (0 of 10 trades)", "expect": {"win": 75.0, "avg": 0.46}, "days": {}, "open": [], "trades": [], "curve": []};

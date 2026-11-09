@@ -1,0 +1,19 @@
+{
+ "version": 1,
+ "start_date": "2026-11-06",
+ "last_bar": {
+  "USA500IDXUSD": "2026-11-06",
+  "USATECHIDXUSD": "2026-11-06",
+  "USA30IDXUSD": "2026-11-06",
+  "DEUIDXEUR": "2026-11-06",
+  "GBRIDXGBP": "2026-11-06",
+  "JPNIDXJPY": "2026-11-06"
+ },
+ "balance": null,
+ "positions": {},
+ "pending": {},
+ "trades": [],
+ "notes": [],
+ "telegram_offset": 0,
+ "next_id": 1
+}
