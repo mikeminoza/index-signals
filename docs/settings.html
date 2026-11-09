@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings and setup</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.lead{font-size:15px;color:var(--muted);margin:6px 0 0}
+.checks{display:grid;gap:8px}
+.check{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.icon{flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.ok .icon{background:var(--up-bg);color:var(--up)}
+.warn .icon{background:var(--sub);color:var(--warn)}
+.bad .icon{background:var(--down-bg);color:var(--down)}
+.info .icon{background:var(--open-bg);color:var(--open)}
+.check .t{font-weight:600}
+.check .d{font-size:14px}
+.check .fix{font-size:13px;color:var(--muted);margin-top:2px}
+.summary{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.summary span{font-size:13px;font-weight:600;border-radius:999px;padding:3px 12px}
+td.wrap{white-space:normal;text-align:left;min-width:180px}
+input{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:5px 8px;width:100%;min-width:64px}
+input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+input.err{border-color:var(--down)}
+.form td{text-align:left;vertical-align:top}
+.err-text{color:var(--down);font-size:13px;margin-top:8px}
+textarea{width:100%;min-height:260px;font:12px/1.45 ui-monospace,Consolas,monospace;color:var(--text);background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+a.btn{display:inline-block;font-size:14px;color:var(--text);text-decoration:none;background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:6px 12px}
+a.btn:hover{background:var(--sub)}
+.steps{margin:0;padding-left:20px}
+.steps li{margin:4px 0}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--sub);border-radius:5px;padding:1px 5px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.fields label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Pages"><a href="index.html">Calendar</a><a href="guide.html">How it works</a><a href="settings.html" aria-current="page">Settings</a></nav>
+  <h1>Settings and setup</h1>
+  <p class="lead">Is everything working, what the bot is set to, and how to change it.</p>
+
+  <h2>System check</h2>
+  <div class="summary" id="summary"></div>
+  <div class="checks" id="checks"></div>
+  <p class="muted" style="font-size:12px;margin-top:8px">The bot checks itself on every run. It only reports whether your Telegram secrets exist; their values are never saved or shown anywhere.</p>
+
+  <h2>Current settings</h2>
+  <div class="tbl" id="settings"></div>
+  <h3 style="margin-top:16px">Indices and your broker's contract specs</h3>
+  <div class="tbl" id="markets"></div>
+
+  <h2>Change settings</h2>
+  <p>Settings live in <code>config.json</code> in your GitHub repository. Fill in this form, build the new file, then paste it into GitHub. The next bot run uses it.</p>
+  <div class="fields">
+    <div><label for="f-equity">Starting balance for the calendar ($)</label><input id="f-equity" inputmode="decimal"></div>
+    <div><label for="f-risk">Risk per trade (% per normal daily move)</label><input id="f-risk" inputmode="decimal"></div>
+    <div><label for="f-token">cron-job.org token expires (YYYY-MM-DD)</label><input id="f-token" placeholder="2027-11-09"></div>
+  </div>
+  <div class="tbl form">
+    <table id="form"></table>
+  </div>
+  <p class="muted" style="font-size:13px;margin-top:6px">Find the specs in MT5: Market Watch → hold the symbol → <b>Specification</b>. Contract size is the money per point for 1 lot. Leave a row's three numbers empty to keep "size per point" messages for that index.</p>
+  <div class="err-text" id="form-error" role="alert"></div>
+  <div class="row">
+    <button id="build">Build config.json</button>
+  </div>
+  <div id="result" style="display:none;margin-top:12px">
+    <textarea id="output" readonly aria-label="New config.json"></textarea>
+    <div class="row">
+      <button id="copy">Copy</button>
+      <a class="btn" id="edit-link" target="_blank" rel="noopener">Open config.json on GitHub ↗</a>
+      <span class="muted" id="copy-note" style="font-size:13px"></span>
+    </div>
+    <ol class="steps muted" style="font-size:14px;margin-top:10px">
+      <li>Click <b>Copy</b>, then <b>Open config.json on GitHub</b> and sign in if asked.</li>
+      <li>On GitHub, click inside the file, press <b>Ctrl+A</b>, then paste with <b>Ctrl+V</b>.</li>
+      <li>Click <b>Commit changes…</b>, then <b>Commit changes</b>. The next run uses the new settings.</li>
+    </ol>
+  </div>
+
+  <h2>Setup checklist</h2>
+  <div class="checks" id="setup"></div>
+
+  <h2>If something goes wrong</h2>
+  <div class="tbl">
+    <table>
+      <tr><th>What you see</th><th style="text-align:left">What to do</th></tr>
+      <tr><td class="wrap">No morning message</td><td class="wrap">Check the System check above. Then cron-job.org → your morning job → history (it should show 204), and your repository's Actions tab for a failed run.</td></tr>
+      <tr><td class="wrap">"⚠ today's bot run failed"</td><td class="wrap">Open the link in that message and read the red step. The bot retries at the next scheduled time on its own.</td></tr>
+      <tr><td class="wrap">cron-job.org shows 401</td><td class="wrap">The GitHub token expired or was pasted wrongly. Regenerate it, paste <code>Bearer github_pat_…</code> into the Authorization header, and update the expiry date here.</td></tr>
+      <tr><td class="wrap">cron-job.org shows 403 or 404</td><td class="wrap">The token needs <b>Actions: Read and write</b> on index-signals, and the URL must end in <code>/actions/workflows/daily.yml/dispatches</code>.</td></tr>
+      <tr><td class="wrap">A reply wasn't confirmed</td><td class="wrap">Replies are read at the next run (morning or about 8:20 pm). Use the index names exactly as in the messages, for example <code>filled US100 19940</code>.</td></tr>
+      <tr><td class="wrap">"no new price … yet"</td><td class="wrap">A market holiday or a delay at the price source. The next run catches up.</td></tr>
+      <tr><td class="wrap">"below your broker's minimum"</td><td class="wrap">The planned size is smaller than the smallest lot. Use a larger demo balance (reply <code>balance AMOUNT</code>) or accept skipping it.</td></tr>
+    </table>
+  </div>
+  <p class="muted" style="font-size:12px;margin-top:24px">For the daily routine and the reply commands, see <a href="guide.html" style="color:inherit">How it works</a>.</p>
+</main>
+<script src="data.js"></script>
+<script>
+(function(){
+const T = window.TRACKER || {};
+const S = T.system || {}, C = T.config || null;
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, text) => { const e = document.createElement(tag); Object.assign(e, attrs || {}); if (text != null) e.textContent = text; return e; };
+const repo = S.repo || (location.hostname.endsWith("github.io")
+  ? location.hostname.split(".")[0] + "/" + location.pathname.split("/").filter(Boolean)[0] : null);
+const github = repo ? "https://github.com/" + repo : null;
+
+function card(target, level, title, detail, fix) {
+  const icon = {ok: "✓", warn: "!", bad: "✕", info: "i"}[level];
+  const d = el("div", {className: "check " + level});
+  const mark = el("span", {className: "icon"}, icon);
+  mark.setAttribute("aria-hidden", "true");
+  d.append(mark);
+  const body = el("div");
+  body.append(el("div", {className: "t"}, title));
+  if (detail) body.append(el("div", {className: "d"}, detail));
+  if (fix) body.append(el("div", {className: "fix"}, fix));
+  d.append(body);
+  $(target).append(d);
+  return level;
+}
+
+// --- System check -------------------------------------------------------------------
+const levels = [];
+if (!T.start_date || !C) {
+  levels.push(card("checks", "warn", "Waiting for the bot's first run with this version",
+    "The system check appears after the next run.", "To run it now: GitHub → Actions → Daily signals → Run workflow."));
+} else {
+  const ageH = S.ran_epoch ? (Date.now() / 1000 - S.ran_epoch) / 3600 : null;
+  const by = {schedule: "GitHub's timer", workflow_dispatch: "cron-job.org or Run workflow", local: "a test on a PC"}[S.event] || S.event;
+  levels.push(card("checks", ageH == null ? "warn" : ageH < 30 ? "ok" : ageH < 54 ? "warn" : "bad",
+    "Bot runs", `Last run ${T.generated}${by ? ", started by " + by : ""}.`,
+    ageH != null && ageH >= 30 ? "No run for over a day. Check cron-job.org's job history and your repository's Actions tab." : null));
+  if (S.run_url) {
+    const a = el("a", {href: S.run_url, target: "_blank", rel: "noopener", style: "color:inherit;font-size:13px"}, "Open the last run's log ↗");
+    $("checks").lastChild.querySelector("div").append(a);
+  }
+  levels.push(card("checks", S.token_set ? "ok" : "bad", "Telegram token (TELEGRAM_TOKEN secret)",
+    S.token_set ? "Set." : "Missing, so the bot can't send messages.",
+    S.token_set ? null : "Repository → Settings → Secrets and variables → Actions → New repository secret."));
+  levels.push(card("checks", S.chat_set ? "ok" : "bad", "Telegram chat ID (TELEGRAM_CHAT_ID secret)",
+    S.chat_set ? "Set." : "Missing, so the bot doesn't know where to send messages.",
+    S.chat_set ? null : "Send your bot a message, open api.telegram.org/bot<TOKEN>/getUpdates, copy the chat id and add it as a secret."));
+  levels.push(card("checks", S.last_sent ? "ok" : "warn", "Telegram messages",
+    S.last_sent ? `Last message sent ${S.last_sent}.` : "No message sent by this version yet.",
+    S.last_sent ? null : "That's normal before the first morning update. To test: send help to your bot, then Run workflow."));
+  levels.push(card("checks", "info", "Your replies",
+    S.last_reply ? `Last reply handled ${S.last_reply}.` : S.replies_seen ? "Replies have been received." : "No replies yet.",
+    "Replies are read at each run: morning and about 8:20 pm."));
+  const behind = Object.entries(S.bars || {}).filter(([, d]) => d < S.expected_bar).map(([n]) => n);
+  const probs = S.problems || [];
+  levels.push(card("checks", probs.length ? "warn" : behind.length ? "warn" : "ok", "Price data",
+    behind.length ? `Not updated to ${S.expected_bar} yet: ${behind.join(", ")}.` : `All six indices up to ${S.expected_bar}.`,
+    probs.length ? "Last run: " + probs.join("; ") : behind.length ? "Usually a market holiday or a short delay. The next run catches up." : null));
+  const markets = C.markets || [];
+  const lots = markets.filter(m => m.contract_size).length;
+  levels.push(card("checks", lots === markets.length ? "ok" : "warn", "Exact lots",
+    lots ? `On for ${lots} of ${markets.length} indices.` : "Off: messages show a size per point.",
+    lots === markets.length ? null : "Enter your broker's contract specs in Change settings below."));
+  const month = new Date().toISOString().slice(0, 7);
+  levels.push(card("checks", S.balance_set && S.balance_month === month ? "ok" : "warn", "Balance used for sizing",
+    `Sizing from $${Math.round(S.sizing_equity || 0).toLocaleString()}` + (S.balance_set ? " (from your balance reply)." : " (starting balance plus results)."),
+    S.balance_set ? null : "Reply balance AMOUNT to your bot with your demo balance."));
+  if (C.token_expires) {
+    const left = Math.floor((new Date(C.token_expires + "T00:00:00") - new Date()) / 86400000);
+    levels.push(card("checks", left > 30 ? "ok" : left >= 0 ? "warn" : "bad", "cron-job.org GitHub token",
+      left >= 0 ? `Expires ${C.token_expires}, in ${left} days.` : `Expired on ${C.token_expires}.`,
+      left > 30 ? null : "Regenerate it on GitHub (Settings → Developer settings → Fine-grained tokens), paste it into cron-job.org and update the date here."));
+  } else {
+    levels.push(card("checks", "warn", "cron-job.org GitHub token", "No expiry date recorded.",
+      "Add it in Change settings below so the bot can remind you before it expires."));
+  }
+}
+const count = k => levels.filter(l => l === k).length;
+[["ok", "var(--up-bg)", "var(--up)", "working"], ["warn", "var(--sub)", "var(--warn)", "to check"],
+ ["bad", "var(--down-bg)", "var(--down)", "to fix"]].forEach(([k, bg, fg, label]) => {
+  if (!count(k)) return;
+  const s = el("span", null, `${count(k)} ${label}`); s.style.background = bg; s.style.color = fg; $("summary").append(s);
+});
+
+// --- Current settings --------------------------------------------------------------
+const ROWS = [
+  ["start_equity", "Starting balance", v => "$" + Number(v).toLocaleString(), "Where the calendar's balance starts.", "yours"],
+  ["risk_pct", "Risk per trade", v => v + "%", "Share of your balance a normal daily move can cost on one trade.", "yours"],
+  ["max_gross", "Exposure cap", v => v + "×", "All open trades together stay under this multiple of your balance.", "tested"],
+  ["rsi_below", "Buy level", v => "2-day RSI below " + v, "How sharp a dip must be to buy.", "tested"],
+  ["exit_rsi", "Sell level", v => v ? "2-day RSI above " + v : "Close above the 5-day average", "When the bounce is taken.", "tested"],
+  ["trend_sma", "Trend filter", v => v + "-day average", "Only buys while the index is above it.", "tested"],
+  ["stop_atr", "Stop loss", v => v + " × ATR", "Distance of the protective stop below the signal close.", "tested"],
+  ["atr_period", "ATR period", v => v + " days", "How the normal daily move is measured.", "tested"],
+  ["financing_pct", "Financing estimate", v => v + "% a year", "Overnight cost assumed in the calendar's results.", "yours"],
+  ["utc_offset_hours", "Time zone", v => "UTC+" + v + " (" + ((C && C.timezone_label) || "") + ")", "Times in messages and on these pages.", "yours"],
+  ["token_expires", "Token expiry", v => v || "not set", "When the cron-job.org GitHub token stops working.", "yours"],
+];
+if (C) {
+  const tb = el("table"), h = el("tr");
+  ["Setting", "Value", "What it does", ""].forEach((x, i) => { const th = el("th", null, x); if (i >= 2) th.style.textAlign = "left"; h.append(th); });
+  tb.append(h);
+  ROWS.forEach(([key, label, fmt, what, kind]) => {
+    const r = el("tr");
+    const tag = el("td", {className: "muted", style: "text-align:left"}, kind === "tested" ? "Tested: keep as is" : "Yours to change");
+    r.append(el("td", null, label), el("td", null, fmt(C[key])), el("td", {className: "wrap"}, what), tag);
+    tb.append(r);
+  });
+  $("settings").append(tb);
+
+  const mt = el("table"), mh = el("tr");
+  ["In messages", "Currency", "Contract size", "Min volume", "Volume step", "Exact lots"].forEach(x => mh.append(el("th", null, x)));
+  mt.append(mh);
+  C.markets.forEach(m => {
+    const r = el("tr"), on = !!m.contract_size;
+    r.append(el("td", null, m.name), el("td", null, m.ccy), el("td", null, m.contract_size ?? "–"),
+             el("td", null, m.min_lot ?? "–"), el("td", null, m.lot_step ?? "–"),
+             el("td", {className: on ? "up" : "muted"}, on ? "On" : "Off"));
+    mt.append(r);
+  });
+  $("markets").append(mt);
+} else {
+  $("settings").append(el("p", {className: "muted"}, "Settings appear after the bot's next run."));
+}
+
+// --- Change settings: builds a complete config.json to paste on GitHub ------------
+const form = $("form");
+if (C) {
+  $("f-equity").value = C.start_equity; $("f-risk").value = C.risk_pct; $("f-token").value = C.token_expires || "";
+  const h = el("tr");
+  ["Index", "Your broker's name", "Contract size", "Min volume", "Volume step"].forEach(x => h.append(el("th", null, x)));
+  form.append(h);
+  C.markets.forEach((m, i) => {
+    const r = el("tr");
+    const INDEX = {USA500IDXUSD: "S&P 500", USATECHIDXUSD: "Nasdaq 100", USA30IDXUSD: "Dow Jones 30",
+                   DEUIDXEUR: "Germany DAX", GBRIDXGBP: "UK FTSE 100", JPNIDXJPY: "Japan Nikkei"};
+    r.append(el("td", null, (INDEX[m.code] || m.code) + " (" + m.ccy + ")"));
+    [["name", m.name, "text"], ["contract_size", m.contract_size ?? "", "decimal"], ["min_lot", m.min_lot ?? "", "decimal"],
+     ["lot_step", m.lot_step ?? "", "decimal"]].forEach(([field, val, mode]) => {
+      const td = el("td"), inp = el("input", {id: `m${i}-${field}`, value: val, inputMode: mode});
+      inp.setAttribute("aria-label", `${m.name} ${field.replace("_", " ")}`);
+      inp.addEventListener("input", () => { inp.classList.remove("err"); $("form-error").textContent = ""; });
+      td.append(inp); r.append(td);
+    });
+    form.append(r);
+  });
+}
+["f-equity", "f-risk", "f-token"].forEach(id => $(id).addEventListener("input", () => { $(id).classList.remove("err"); $("form-error").textContent = ""; }));
+
+$("build").onclick = () => {
+  if (!C) { $("form-error").textContent = "The settings load after the bot's next run. Try again then."; return; }
+  const errors = [], out = JSON.parse(JSON.stringify(C));
+  const num = (id, min, max, label) => {
+    const inp = $(id), v = Number(String(inp.value).replace(/,/g, ""));
+    if (inp.value.trim() === "" || !isFinite(v) || v < min || v > max) { inp.classList.add("err"); errors.push(label); return null; }
+    return v;
+  };
+  out.start_equity = num("f-equity", 100, 1e9, "starting balance (100 or more)");
+  out.risk_pct = num("f-risk", 0.05, 3, "risk per trade (between 0.05 and 3)");
+  const tok = $("f-token").value.trim();
+  if (tok && !/^\d{4}-\d{2}-\d{2}$/.test(tok)) { $("f-token").classList.add("err"); errors.push("token expiry as YYYY-MM-DD"); }
+  out.token_expires = tok || null;
+  out.markets.forEach((m, i) => {
+    const name = $(`m${i}-name`), fields = ["contract_size", "min_lot", "lot_step"].map(f => $(`m${i}-${f}`));
+    if (!/^[A-Za-z0-9._-]{2,20}$/.test(name.value.trim())) { name.classList.add("err"); errors.push(`${m.name} name (letters, numbers, . _ -)`); }
+    m.name = name.value.trim();
+    const filled = fields.filter(f => f.value.trim() !== "").length;
+    if (filled === 0) { m.contract_size = m.min_lot = m.lot_step = null; return; }
+    if (filled < 3) { fields.forEach(f => f.value.trim() === "" && f.classList.add("err")); errors.push(`all three specs for ${m.name}, or none`); return; }
+    const vals = fields.map(f => Number(f.value.replace(/,/g, "")));
+    vals.forEach((v, k) => { if (!isFinite(v) || v <= 0) { fields[k].classList.add("err"); errors.push(`${m.name} specs must be numbers above 0`); } });
+    [m.contract_size, m.min_lot, m.lot_step] = vals;
+  });
+  const names = out.markets.map(m => m.name.toLowerCase());
+  if (new Set(names).size !== names.length) errors.push("each index needs a different name");
+  if (errors.length) { $("form-error").textContent = "Check: " + [...new Set(errors)].join("; ") + "."; $("result").style.display = "none"; return; }
+  $("output").value = JSON.stringify(out, null, 2) + "\n";
+  $("result").style.display = "block";
+  $("copy-note").textContent = "";
+  const link = $("edit-link");
+  if (github) { link.href = github + "/edit/main/config.json"; link.style.display = ""; } else link.style.display = "none";
+};
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("output").value); $("copy-note").textContent = "Copied."; }
+  catch { $("output").select(); $("copy-note").textContent = "Press Ctrl+C (or long-press → Copy) to copy the selected text."; }
+};
+
+// --- Setup checklist ----------------------------------------------------------------
+const done = (cond, title, fix) => card("setup", cond === null ? "info" : cond ? "ok" : "warn", title, null, cond ? null : fix);
+done(!!(S.token_set && S.chat_set), "Telegram bot and its two secrets", "Create the bot with @BotFather and add TELEGRAM_TOKEN and TELEGRAM_CHAT_ID as repository secrets.");
+done(true, "Calendar site on GitHub Pages", null);
+done(null, "cron-job.org morning job: Tuesday to Saturday at 09:05", "Check yourself in cron-job.org.");
+done(null, "cron-job.org evening job: every day at 20:20", "Check yourself in cron-job.org.");
+done(!!(C && C.token_expires), "Token expiry date recorded", "Add it in Change settings.");
+done(null, "MT5 demo account with the six indices", "Check Market Watch in the MT5 app.");
+done(!!(C && C.markets.every(m => m.contract_size)), "Broker contract specs entered", "Fill them in under Change settings.");
+done(!!S.balance_set, "Balance sent to the bot", "Reply balance AMOUNT to your bot.");
+})();
+</script>
+</body>
+</html>

@@ -74,8 +74,10 @@ Secrets stay hidden, even in a public repository.
 **Settings → Pages → Build and deployment**: Source **Deploy from a branch**, branch
 **main**, folder **/docs**, then **Save**. After a minute the page is live at
 `https://<your-username>.github.io/<repository-name>/`. Bookmark it on your phone.
-The site has two pages: **Calendar** (your trades) and **How it works** (live market
-watch for the six indices, the rules, the bot's schedule and your routine).
+The site has three pages: **Calendar** (your trades), **How it works** (live market
+watch for the six indices, the rules, the bot's schedule and your routine) and **Settings**
+(a system check of the bot, its secrets and data, the current settings, a helper that
+builds a new `config.json` for you, a setup checklist and troubleshooting).
 
 ### 5. Start the bot
 

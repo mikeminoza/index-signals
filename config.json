@@ -11,6 +11,7 @@
   "financing_pct": 5.0,
   "utc_offset_hours": 8,
   "timezone_label": "PH time",
+  "token_expires": "2027-11-09",
   "markets": [
     {"code": "USA500IDXUSD", "name": "US500", "ccy": "USD", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},
     {"code": "USATECHIDXUSD", "name": "US100", "ccy": "USD", "spread_pct": 0.015, "contract_size": null, "min_lot": null, "lot_step": null},

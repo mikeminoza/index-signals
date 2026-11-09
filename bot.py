@@ -632,6 +632,12 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
     if j.get("balance_month") != month:
         lines.append(f"Monthly check: reply balance AMOUNT with your demo balance so sizes match "
                      f"(now sizing from ${sizing_equity(j, cfg):,.0f}).")
+    if cfg.get("token_expires"):
+        left = (date.fromisoformat(cfg["token_expires"]) - today_local).days
+        if left <= 14:
+            when = f"expires in {left} days" if left >= 0 else "has expired"
+            lines.append(f"⚠ Your cron-job.org GitHub token {when} ({cfg['token_expires']}). Regenerate it on GitHub, "
+                         "paste it into cron-job.org, then update token_expires in config.json.")
     if acks:
         lines += ["", "<b>Your replies</b>"] + [html.escape(a, quote=False) for a in acks]
     if problems:
@@ -670,7 +676,7 @@ def market_watch(j, cfg, data, until):
     return out
 
 
-def build_page(j, cfg, now_local, path, watch=None):
+def build_page(j, cfg, now_local, path, watch=None, system=None):
     days = {}
 
     def add(day, item, pnl=0.0):
@@ -733,7 +739,7 @@ def build_page(j, cfg, now_local, path, watch=None):
                mine=s_mine, all=s_all, verdict=verdict(s_mine), expect=dict(win=EXPECT_WIN, avg=EXPECT_AVG),
                days={d: dict(pnl=round(v["pnl"], 2), items=v["items"]) for d, v in days.items()},
                open=open_pos, trades=trades, curve=curve, watch=watch or [],
-               fills=dict(zip(("n", "cost"), fill_quality(j))),
+               fills=dict(zip(("n", "cost"), fill_quality(j))), system=system or {}, config=cfg,
                rules={k: cfg.get(k) for k in ("rsi_below", "exit_rsi", "exit_sma", "trend_sma", "stop_atr",
                                                "atr_period", "risk_pct", "max_gross", "start_equity")},
                markets=[dict(name=m["name"], ccy=m["ccy"]) for m in cfg["markets"]])
@@ -801,6 +807,9 @@ def main():
         print(f"TELEGRAM_CHAT_ID is not set. Chats that messaged the bot: {', '.join(sorted(seen))}")
         sys.exit(1)
     acks = handle_replies(j, cfg, updates, chat, cfg["utc_offset_hours"])
+    stamp = f"{now_local:%d %b %Y %H:%M}"
+    if acks:
+        j["last_reply"] = stamp
 
     # 2. Prices
     codes = [m["code"] for m in cfg["markets"]] + [p for p, _ in FX_PAIRS.values()]
@@ -840,11 +849,28 @@ def main():
             print("-" * 60)
         else:
             telegram(token, "sendMessage", chat_id=chat, text=msg, parse_mode="HTML", disable_web_page_preview=True)
+            j["last_sent"] = stamp
+            if processed:
+                j["last_morning"] = today_local.isoformat()
     os.makedirs(args.state, exist_ok=True)
     with open(jpath, "w", encoding="utf-8") as f:
         json.dump(j, f, indent=1)
     write_trades_csv(j, os.path.join(args.state, "trades.csv"))
-    build_page(j, cfg, now_local, os.path.join(args.docs, "data.js"), market_watch(j, cfg, data, today.isoformat()))
+
+    # Health report for the Settings page: whether secrets exist, never their values
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    system = dict(
+        token_set=bool(token), chat_set=bool(chat), event=os.environ.get("GITHUB_EVENT_NAME", "local"),
+        ran_epoch=int(now.timestamp()),
+        run_url=f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo}/actions/runs/{run_id}"
+        if run_id and repo else None,
+        repo=repo or None, last_sent=j.get("last_sent"), last_morning=j.get("last_morning"),
+        last_reply=j.get("last_reply"), replies_seen=j["telegram_offset"] > 0, problems=problems,
+        expected_bar=expected.isoformat(), bars={m["name"]: j["last_bar"].get(m["code"], "") for m in cfg["markets"]},
+        sizing_equity=round(sizing_equity(j, cfg), 2), balance_set=bool(j.get("balance")),
+        balance_month=j.get("balance_month"))
+    build_page(j, cfg, now_local, os.path.join(args.docs, "data.js"), market_watch(j, cfg, data, today.isoformat()),
+               system)
     print(f"processed {len(processed)} day(s), {len(ev)} event(s), {len(acks)} repl(ies)")
 
 
