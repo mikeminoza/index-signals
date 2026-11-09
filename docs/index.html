@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade calendar</title>
+<style>
+:root{
+  --bg:#f7f6f2;--card:#ffffff;--sub:#efede6;--text:#1f1e1b;--muted:#6b6a64;--line:rgba(0,0,0,.1);--line2:rgba(0,0,0,.18);
+  --up:#2f6b12;--up-bg:#e3efd5;--down:#a32d2d;--down-bg:#f7dede;--open:#185fa5;--open-bg:#e2eefa;--warn:#854f0b;--warn-line:#d99a3c;
+  --accent:#185fa5;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171715;--card:#21211e;--sub:#2a2a27;--text:#ecebe6;--muted:#a3a29b;--line:rgba(255,255,255,.1);--line2:rgba(255,255,255,.2);
+  --up:#a4d27a;--up-bg:#26391a;--down:#f09595;--down-bg:#4a1f1f;--open:#85b7eb;--open-bg:#163049;--warn:#efb35a;--warn-line:#b9822c;
+  --accent:#85b7eb;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:20px;font-weight:600;margin:0}
+h2{font-size:16px;font-weight:600;margin:28px 0 10px}
+.muted{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+.card{background:var(--sub);border-radius:10px;padding:10px 12px}
+.card .k{font-size:12px;color:var(--muted)}
+.card .v{font-size:20px;font-weight:600}
+.up{color:var(--up)}.down{color:var(--down)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px}
+button{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line2);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--sub)}
+.cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(0,.85fr);gap:6px}
+.hd{font-size:12px;color:var(--muted);padding:0 4px}
+.day{min-height:84px;text-align:left;padding:6px 7px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.day.out{opacity:.35;cursor:default}
+.day.sel{outline:2px solid var(--accent);outline-offset:-1px}
+.day.today .n{color:var(--accent);font-weight:700}
+.day .n{font-size:12px;color:var(--muted)}
+.day .p{font-size:15px;font-weight:600}
+.tag{font-size:11px;line-height:1.3;border:1px solid var(--line);border-radius:5px;padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.wk{min-height:84px;border-radius:8px;background:var(--sub);padding:6px 7px;font-size:12px;color:var(--muted)}
+.wk .p{font-size:15px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:10px}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:14px}
+.item{padding:8px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500}
+svg text{fill:var(--muted);font-size:11px}
+@media (max-width:560px){
+  .day,.wk{min-height:62px;padding:4px 5px}
+  .day .tag{display:none}
+  .day .dots{display:flex}
+  .day .p,.wk .p{font-size:12px}
+}
+.dots{display:none;gap:3px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%}
+</style>
+</head>
+<body>
+<main>
+  <div class="bar" style="margin:0">
+    <h1>Trade calendar</h1>
+    <span class="muted" id="updated" style="font-size:12px"></span>
+  </div>
+  <div class="muted" style="font-size:13px">IndexPullback signals · RSI(2) pullbacks on six stock indices</div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="bar">
+    <button id="prev" aria-label="Previous month">‹</button>
+    <div style="text-align:center">
+      <div id="month" style="font-weight:600;font-size:17px"></div>
+      <div id="monthsum" class="muted" style="font-size:12px"></div>
+    </div>
+    <button id="next" aria-label="Next month">›</button>
+  </div>
+  <div class="cal" id="cal"></div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--up-bg)"></span>Closed with profit</span>
+    <span><span class="sw" style="background:var(--down-bg)"></span>Closed with loss</span>
+    <span><span class="sw" style="background:var(--open-bg)"></span>Bought, holding or signal to act on</span>
+    <span><span class="sw" style="border:1.5px solid var(--warn-line)"></span>Signal you skipped</span>
+  </div>
+  <div class="panel" id="detail"></div>
+
+  <h2>Open trades</h2>
+  <div id="open"></div>
+
+  <h2>Account curve</h2>
+  <div id="curve"></div>
+
+  <h2>Trade history</h2>
+  <div class="tbl" id="history"></div>
+
+  <p class="muted" style="font-size:12px;margin-top:28px">
+    Results use your reported prices where you replied "filled", otherwise the day's opening price plus half the
+    typical spread, minus an estimate of overnight financing. "Vs backtest" compares your trades with the
+    2014-2026 backtest: about 75% winners and +0.46% per trade on average.
+  </p>
+</main>
+<script src="data.js"></script>
+<script>
+(function(){
+const T = window.TRACKER;
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, text) => { const e = document.createElement(tag); Object.assign(e, attrs || {}); if (text != null) e.textContent = text; return e; };
+const money = v => (v >= 0 ? "+" : "-") + "$" + Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 0});
+const pct = v => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+if (!T || !T.start_date) {
+  $("detail").textContent = "Waiting for the bot's first run. The calendar fills in after the first morning update.";
+  ["prev","next"].forEach(id => $(id).style.visibility = "hidden");
+  return;
+}
+$("updated").textContent = "Updated " + T.generated;
+
+const m = T.mine;
+const cards = [
+  ["Balance", "$" + T.equity.toLocaleString(undefined, {maximumFractionDigits: 0}), ""],
+  ["Total result", money(m.total), m.total >= 0 ? "up" : "down"],
+  ["Trades", m.n + " (" + m.wins + " wins)", ""],
+  ["Win rate", m.n ? m.win_rate.toFixed(0) + "%" : "–", ""],
+  ["Average trade", m.n ? pct(m.avg_ret) : "–", m.avg_ret >= 0 ? "up" : "down"],
+  ["Vs backtest", T.verdict, ""],
+];
+cards.forEach(([k, v, c]) => {
+  const d = el("div", {className: "card"});
+  d.append(el("div", {className: "k"}, k), el("div", {className: "v " + c, style: k === "Vs backtest" ? "font-size:14px;font-weight:600" : ""}, v));
+  $("cards").append(d);
+});
+
+const KIND = {
+  buy: ["Buy", "var(--open)"], hold: ["Hold", "var(--muted)"], sell: ["Sell", "var(--text)"], stop: ["Stop", "var(--down)"],
+  missed: ["Skipped", "var(--warn)"], note: ["Note", "var(--muted)"], "buy-next": ["Buy signal", "var(--open)"], "sell-next": ["Sell signal", "var(--open)"],
+};
+const start = new Date(T.start_date + "T00:00:00");
+const today = new Date();
+let view = new Date(today.getFullYear(), today.getMonth(), 1);
+const first = new Date(start.getFullYear(), start.getMonth(), 1);
+let selected = null;
+
+function render() {
+  const cal = $("cal");
+  cal.replaceChildren();
+  ["Mon","Tue","Wed","Thu","Fri","Week"].forEach(h => cal.append(el("div", {className: "hd"}, h)));
+  $("month").textContent = MONTHS[view.getMonth()] + " " + view.getFullYear();
+  $("prev").disabled = view <= first;
+  $("next").disabled = view.getFullYear() === today.getFullYear() && view.getMonth() === today.getMonth();
+
+  const d = new Date(view);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);  // first weekday of the month
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));                           // back to its Monday
+  let monthPnl = 0, closed = 0, wins = 0;
+  while (true) {
+    let week = 0;
+    for (let k = 0; k < 5; k++) {
+      const day = new Date(d); day.setDate(d.getDate() + k);
+      const key = iso(day), inMonth = day.getMonth() === view.getMonth(), info = T.days[key];
+      const b = el("button", {className: "day" + (inMonth ? "" : " out") + (key === iso(today) ? " today" : "") + (key === selected ? " sel" : "")});
+      b.setAttribute("aria-label", key);
+      b.append(el("span", {className: "n"}, String(day.getDate())));
+      if (info && inMonth) {
+        const kinds = info.items.map(i => i.kind);
+        if (info.pnl > 0) b.style.background = "var(--up-bg)";
+        else if (info.pnl < 0) b.style.background = "var(--down-bg)";
+        else if (kinds.some(k => k !== "note" && k !== "missed")) b.style.background = "var(--open-bg)";
+        if (kinds.includes("missed")) b.style.border = "1.5px solid var(--warn-line)";
+        if (info.pnl) b.append(el("span", {className: "p " + (info.pnl > 0 ? "up" : "down")}, money(info.pnl)));
+        const dots = el("span", {className: "dots"});
+        info.items.slice(0, 3).forEach(i => {
+          const [label, color] = KIND[i.kind] || [i.kind, "var(--muted)"];
+          const t = el("span", {className: "tag"}, label + (i.name ? " " + i.name : ""));
+          t.style.color = color; b.append(t);
+          const dot = el("span", {className: "dot"}); dot.style.background = color; dots.append(dot);
+        });
+        if (info.items.length > 3) b.append(el("span", {className: "tag"}, "+" + (info.items.length - 3) + " more"));
+        b.append(dots);
+        week += info.pnl; monthPnl += info.pnl;
+        info.items.forEach(i => { if ((i.kind === "sell" || i.kind === "stop") && i.pnl != null) { closed++; if (i.pnl > 0) wins++; } });
+      }
+      if (inMonth) b.onclick = () => { selected = key; render(); show(key); };
+      else b.disabled = true;
+      cal.append(b);
+    }
+    const w = el("div", {className: "wk"});
+    w.append(el("div", null, "Week"), el("div", {className: "p " + (week > 0 ? "up" : week < 0 ? "down" : "")}, week ? money(week) : "$0"));
+    cal.append(w);
+    d.setDate(d.getDate() + 7);
+    if (d.getMonth() !== view.getMonth() && d > view) break;
+  }
+  $("monthsum").textContent = (closed ? closed + " closed · " + wins + " won · " : "No closed trades · ") + money(monthPnl) + " this month";
+}
+
+function show(key) {
+  const box = $("detail"), info = T.days[key];
+  box.replaceChildren();
+  const date = new Date(key + "T00:00:00");
+  box.append(el("div", {style: "font-weight:600;margin-bottom:4px"}, date.toDateString() + (info && info.pnl ? " · " + money(info.pnl) : "")));
+  if (!info) { box.append(el("div", {className: "muted"}, "No signal. Nothing to do.")); return; }
+  info.items.forEach(i => {
+    const [label, color] = KIND[i.kind] || [i.kind, "var(--muted)"];
+    const row = el("div", {className: "item"});
+    const head = el("div");
+    const t = el("span", {style: "font-weight:600"}, label + (i.name ? " " + i.name : "")); t.style.color = color;
+    head.append(t);
+    if (i.ret != null) head.append(el("span", {className: i.ret >= 0 ? "up" : "down"}, "  " + pct(i.ret) + (i.pnl != null ? " · " + money(i.pnl) : "")));
+    row.append(head, el("div", {className: "muted", style: "font-size:13px"}, i.text));
+    box.append(row);
+  });
+}
+
+$("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); };
+$("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); };
+render();
+const latest = Object.keys(T.days).filter(k => k <= iso(today)).sort().pop();
+if (latest && latest.slice(0, 7) === iso(view).slice(0, 7)) { selected = latest; render(); show(latest); }
+else $("detail").append(el("div", {className: "muted"}, "Tap a day to see what happened."));
+
+if (T.open.length) {
+  const tb = el("table"); const tr = el("tr");
+  ["Index","Bought","Entry","Last close","So far","Stop"].forEach(h => tr.append(el("th", null, h))); tb.append(tr);
+  T.open.forEach(p => {
+    const r = el("tr");
+    [p.name + (p.taken ? "" : " (skipped)"), p.entry_date, p.entry.toFixed(2), p.last.toFixed(2)].forEach(v => r.append(el("td", null, v)));
+    r.append(el("td", {className: p.ret >= 0 ? "up" : "down"}, pct(p.ret)), el("td", null, p.stop.toFixed(2)));
+    tb.append(r);
+  });
+  $("open").append(el("div", {className: "tbl"}).appendChild(tb).parentNode);
+} else $("open").append(el("div", {className: "muted"}, "No open trades."));
+
+const pts = [[T.start_date, T.start_equity]].concat(T.curve);
+if (pts.length > 1) {
+  // Drawn at the real width so the labels stay readable on phones
+  const W = Math.max(280, $("curve").clientWidth || 800), H = 200, L = 56, R = 10, Tp = 10, B = 24;
+  const xs = pts.map(p => new Date(p[0]).getTime()), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs) || x0 + 1, y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = (y1 - y0) * 0.1 || 50;
+  const X = t => L + (t - x0) / ((x1 - x0) || 1) * (W - L - R), Y = v => Tp + (1 - (v - (y0 - pad)) / ((y1 - y0) + 2 * pad)) * (H - Tp - B);
+  const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Account balance after each closed trade");
+  for (const v of [y0 - pad, (y0 + y1) / 2, y1 + pad]) {
+    const ln = document.createElementNS(ns, "line"); Object.entries({x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "currentColor", "stroke-opacity": .12}).forEach(([k, a]) => ln.setAttribute(k, a)); svg.append(ln);
+    const tx = document.createElementNS(ns, "text"); tx.setAttribute("x", L - 6); tx.setAttribute("y", Y(v) + 4); tx.setAttribute("text-anchor", "end"); tx.textContent = "$" + Math.round(v).toLocaleString(); svg.append(tx);
+  }
+  const path = document.createElementNS(ns, "polyline");
+  path.setAttribute("points", pts.map((p, i) => X(xs[i]) + "," + Y(p[1])).join(" "));
+  Object.entries({fill: "none", stroke: "var(--accent)", "stroke-width": 2}).forEach(([k, a]) => path.setAttribute(k, a));
+  svg.append(path);
+  $("curve").append(svg);
+} else $("curve").append(el("div", {className: "muted"}, "The curve builds as trades close."));
+
+if (T.trades.length) {
+  const tb = el("table"); const tr = el("tr");
+  ["Index","Bought","Sold","Entry","Exit","Result","P/L","Days","Exit"].forEach(h => tr.append(el("th", null, h))); tb.append(tr);
+  T.trades.forEach(t => {
+    const r = el("tr");
+    r.append(el("td", null, t.name + (t.taken ? "" : " (skipped)")), el("td", null, t.entry_date), el("td", null, t.exit_date),
+      el("td", null, t.entry.toFixed(2)), el("td", null, t.exit.toFixed(2)),
+      el("td", {className: t.ret >= 0 ? "up" : "down"}, pct(t.ret)),
+      el("td", {className: t.pnl >= 0 ? "up" : "down"}, t.taken ? money(t.pnl) : "–"),
+      el("td", null, String(t.days)), el("td", null, t.reason === "stop" ? "stop" : "5-day avg"));
+    tb.append(r);
+  });
+  $("history").append(tb);
+} else $("history").append(el("div", {className: "muted"}, "No closed trades yet."));
+})();
+</script>
+</body>
+</html>

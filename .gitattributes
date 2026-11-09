@@ -1,0 +1,2 @@
+# The bot runs on Linux and commits its journal; keep every text file LF on all machines
+* text=auto eol=lf

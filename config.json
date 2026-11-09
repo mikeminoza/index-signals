@@ -1,0 +1,21 @@
+{
+  "start_equity": 10000,
+  "risk_pct": 0.5,
+  "max_gross": 2.0,
+  "stop_atr": 3.0,
+  "rsi_below": 5,
+  "exit_sma": 5,
+  "trend_sma": 200,
+  "atr_period": 20,
+  "financing_pct": 5.0,
+  "utc_offset_hours": 8,
+  "timezone_label": "PH time",
+  "markets": [
+    {"code": "USA500IDXUSD", "name": "US500", "ccy": "USD", "spread_pct": 0.015},
+    {"code": "USATECHIDXUSD", "name": "US100", "ccy": "USD", "spread_pct": 0.015},
+    {"code": "USA30IDXUSD", "name": "US30", "ccy": "USD", "spread_pct": 0.015},
+    {"code": "DEUIDXEUR", "name": "GER40", "ccy": "EUR", "spread_pct": 0.015},
+    {"code": "GBRIDXGBP", "name": "UK100", "ccy": "GBP", "spread_pct": 0.015},
+    {"code": "JPNIDXJPY", "name": "JP225", "ccy": "JPY", "spread_pct": 0.02}
+  ]
+}
