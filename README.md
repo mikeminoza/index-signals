@@ -74,10 +74,11 @@ Secrets stay hidden, even in a public repository.
 **Settings → Pages → Build and deployment**: Source **Deploy from a branch**, branch
 **main**, folder **/docs**, then **Save**. After a minute the page is live at
 `https://<your-username>.github.io/<repository-name>/`. Bookmark it on your phone.
-The site has three pages: **Calendar** (your trades), **How it works** (live market
-watch for the six indices, the rules, the bot's schedule and your routine) and **Settings**
-(a system check of the bot, its secrets and data, the current settings, a helper that
-builds a new `config.json` for you, a setup checklist and troubleshooting).
+The site has four pages: **Calendar** (your trades), **How it works** (live market
+watch for the six indices, the rules, the bot's schedule and your routine), **Enter data**
+(send fills, skips, notes and your balance without Telegram) and **Settings** (a system
+check of the bot, its secrets and data, the current settings, a form that saves a new
+`config.json`, a setup checklist and troubleshooting).
 
 ### 5. Start the bot
 
@@ -132,6 +133,25 @@ volume, skip the trade or use a larger demo balance.
 | `help` | the list of replies |
 
 The bot reads replies at about 9:05 am and 8:20 pm and confirms what it recorded.
+
+## Entering data on the website instead
+
+The **Enter data** page has forms for the same things (fill, skip, note, balance), for when
+you can't use Telegram. The **Settings** page can also save `config.json` with one click.
+Both need this browser connected once:
+
+1. On GitHub: your photo → **Settings** → **Developer settings** → **Personal access tokens**
+   → **Fine-grained tokens** → **Generate new token**.
+2. Name `website index-signals`, an expiry of up to 1 year, **Only select repositories** →
+   `index-signals`, and Repository permissions → **Contents: Read and write**.
+3. Copy the token, open the **Enter data** page, paste it and click **Connect**.
+
+The token is kept in that browser only, never in the repository. It can change files in this
+one repository and can't read your Telegram secrets. Click **Disconnect this browser** on a
+shared device, and revoke the token on GitHub if you ever lose the device.
+
+Each entry is saved as a small file in `state/inbox/`. The bot applies and removes them at its
+next run and confirms them in its next Telegram message, marked "Website:".
 
 ## Settings (`config.json`)
 

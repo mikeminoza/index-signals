@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enter data</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.lead{font-size:15px;color:var(--muted);margin:6px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.box p{font-size:13px;color:var(--muted)}
+label{font-size:12px;color:var(--muted);display:block;margin:8px 0 3px}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;width:100%}
+textarea{min-height:64px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.err{border-color:var(--down)}
+.msg{font-size:13px;margin-top:8px;min-height:18px}
+.msg.bad{color:var(--down)}.msg.good{color:var(--up)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+
+.status{display:inline-block;font-size:13px;font-weight:600;border-radius:999px;padding:3px 12px}
+details{margin-top:10px;font-size:14px}
+summary{cursor:pointer;color:var(--muted)}
+ol{margin:8px 0 0;padding-left:20px}
+li{margin:4px 0}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--sub);border-radius:5px;padding:1px 5px}
+.log{list-style:none;margin:0;padding:0;font-size:14px}
+.log li{padding:6px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Pages"><a href="index.html">Calendar</a><a href="guide.html">How it works</a><a href="input.html" aria-current="page">Enter data</a><a href="settings.html">Settings</a></nav>
+  <h1>Enter data</h1>
+  <p class="lead">Report fills, skip signals, add notes or set your balance here when you can't use Telegram. It does the same as replying to the bot.</p>
+
+  <h2>Connection</h2>
+  <div class="box">
+    <span class="status" id="status"></span>
+    <div id="connect-form">
+      <label for="token">GitHub token for this site</label>
+      <input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
+      <div class="row"><button id="connect">Connect</button></div>
+      <details>
+        <summary>How to get the token (once, about 2 minutes)</summary>
+        <ol>
+          <li>Open <a id="new-token" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:inherit">GitHub → New fine-grained token ↗</a>.</li>
+          <li>Name it <code>website index-signals</code> and pick an expiry (up to 1 year).</li>
+          <li>Repository access: <b>Only select repositories</b> → <b>index-signals</b>.</li>
+          <li>Permissions → Repository permissions → <b>Contents: Read and write</b>. Leave the rest.</li>
+          <li>Generate it, copy it, and paste it above.</li>
+        </ol>
+        <p style="margin-top:8px">The token stays in this browser only. It can change files in this one repository and can't read your Telegram secrets. Use Disconnect on a shared device, and you can revoke it on GitHub at any time.</p>
+      </details>
+    </div>
+    <div id="connected" style="display:none">
+      <div class="row"><button id="disconnect">Disconnect this browser</button></div>
+    </div>
+    <div class="msg" id="connect-msg" role="alert"></div>
+  </div>
+
+  <h2>Send to the bot</h2>
+  <p class="muted" style="font-size:13px">The bot applies entries at its next run (about 9:05 am or 8:20 pm) and confirms them on Telegram and on the calendar. <span id="waiting"></span></p>
+  <div class="grid">
+    <form class="box" id="f-fill" novalidate>
+      <h3>Report a fill</h3>
+      <p>The price you actually bought or sold at.</p>
+      <label for="fill-name">Index</label><select id="fill-name" class="names"></select>
+      <label for="fill-price">Your price</label><input id="fill-price" inputmode="decimal" placeholder="19940.5">
+      <div class="row"><button type="submit">Send fill</button></div>
+      <div class="msg" role="alert"></div>
+    </form>
+    <form class="box" id="f-skip" novalidate>
+      <h3>Skip a signal</h3>
+      <p>You didn't take this signal. It stays on the calendar as skipped.</p>
+      <label for="skip-name">Index</label><select id="skip-name" class="names"></select>
+      <div class="row"><button type="submit">Send skip</button></div>
+      <div class="msg" role="alert"></div>
+    </form>
+    <form class="box" id="f-note" novalidate>
+      <h3>Add a note</h3>
+      <p>Attach a note to a trade, or a general note for today.</p>
+      <label for="note-name">About</label><select id="note-name" class="names" data-general="1"></select>
+      <label for="note-text">Note</label><textarea id="note-text" maxlength="150" placeholder="Entered 30 minutes late"></textarea>
+      <div class="row"><button type="submit">Send note</button></div>
+      <div class="msg" role="alert"></div>
+    </form>
+    <form class="box" id="f-balance" novalidate>
+      <h3>Set your balance</h3>
+      <p>New signals are sized from this amount.</p>
+      <label for="balance">Demo account balance ($)</label><input id="balance" inputmode="decimal" placeholder="10250">
+      <div class="row"><button type="submit">Send balance</button></div>
+      <div class="msg" role="alert"></div>
+    </form>
+  </div>
+
+  <h2>Sent from this browser</h2>
+  <div class="box"><ul class="log" id="log"><li class="muted">Nothing sent yet in this visit.</li></ul></div>
+</main>
+<script src="data.js"></script>
+<script src="github.js"></script>
+<script>
+(function(){
+const T = window.TRACKER || {}, GH = window.GH;
+const $ = id => document.getElementById(id);
+const names = (T.markets || []).map(m => m.name);
+const FALLBACK = ["US500", "US100", "US30", "GER40", "UK100", "JP225"];
+
+document.querySelectorAll("select.names").forEach(sel => {
+  if (sel.dataset.general) sel.append(new Option("General note (today)", ""));
+  (names.length ? names : FALLBACK).forEach(n => sel.append(new Option(n, n)));
+});
+
+function show() {
+  const on = GH.connected(), w = GH.who();
+  const s = $("status");
+  s.textContent = on ? "Connected" + (w ? " as " + w.login : "") : "Not connected";
+  s.style.background = on ? "var(--up-bg)" : "var(--sub)";
+  s.style.color = on ? "var(--up)" : "var(--muted)";
+  $("connect-form").style.display = on ? "none" : "";
+  $("connected").style.display = on ? "" : "none";
+  document.querySelectorAll(".grid button").forEach(b => { b.disabled = !on; });
+  if (on) GH.waiting().then(n => { $("waiting").textContent = n ? n + " waiting for the next run." : ""; });
+  else $("waiting").textContent = "Connect first to use the forms.";
+}
+
+$("connect").onclick = async () => {
+  const input = $("token"), msg = $("connect-msg"), t = input.value.trim();
+  msg.className = "msg bad";
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(t)) {
+    input.classList.add("err"); msg.textContent = "Paste the whole token. It starts with github_pat_."; return;
+  }
+  $("connect").disabled = true; msg.className = "msg"; msg.textContent = "Checking with GitHub…";
+  try {
+    const login = await GH.connect(t);
+    input.value = ""; msg.className = "msg good"; msg.textContent = "Connected as " + login + ".";
+  } catch (e) { msg.className = "msg bad"; msg.textContent = e.message; }
+  $("connect").disabled = false; show();
+};
+$("token").addEventListener("input", () => { $("token").classList.remove("err"); $("connect-msg").textContent = ""; });
+$("disconnect").onclick = () => { GH.disconnect(); $("connect-msg").className = "msg"; $("connect-msg").textContent = "Disconnected. The token was removed from this browser."; show(); };
+
+function price(input) {
+  const v = Number(String(input.value).replace(/,/g, "").trim());
+  return input.value.trim() !== "" && isFinite(v) && v > 0 ? v : null;
+}
+
+async function send(form, text, fields) {
+  const msg = form.querySelector(".msg"), btn = form.querySelector("button");
+  btn.disabled = true; msg.className = "msg"; msg.textContent = "Sending…";
+  try {
+    const now = new Date();
+    const file = "state/inbox/" + now.getTime() + "-" + Math.random().toString(36).slice(2, 8) + ".json";
+    await GH.create(file, JSON.stringify({text, at: now.toISOString()}) + "\n", "Website input");
+    msg.className = "msg good"; msg.textContent = "Sent. The bot applies it at its next run.";
+    fields.forEach(f => { f.value = ""; });
+    const log = $("log");
+    if (log.firstChild && log.firstChild.className === "muted") log.replaceChildren();
+    const li = document.createElement("li");
+    li.textContent = now.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) + " · " + text;
+    log.prepend(li);
+    GH.waiting().then(n => { $("waiting").textContent = n ? n + " waiting for the next run." : ""; });
+  } catch (e) { msg.className = "msg bad"; msg.textContent = e.message; }
+  btn.disabled = !GH.connected();
+}
+
+function fail(form, input, text) {
+  input.classList.add("err");
+  const msg = form.querySelector(".msg"); msg.className = "msg bad"; msg.textContent = text;
+}
+document.querySelectorAll(".grid input, .grid textarea").forEach(i => i.addEventListener("input", () => {
+  i.classList.remove("err"); i.closest("form").querySelector(".msg").textContent = "";
+}));
+
+$("f-fill").onsubmit = e => {
+  e.preventDefault();
+  const p = price($("fill-price"));
+  if (p === null) return fail(e.target, $("fill-price"), "Enter the price you got, for example 19940.5.");
+  send(e.target, "filled " + $("fill-name").value + " " + p, [$("fill-price")]);
+};
+$("f-skip").onsubmit = e => { e.preventDefault(); send(e.target, "skip " + $("skip-name").value, []); };
+$("f-note").onsubmit = e => {
+  e.preventDefault();
+  const text = $("note-text").value.replace(/\s+/g, " ").trim();
+  if (!text) return fail(e.target, $("note-text"), "Write the note first.");
+  send(e.target, ("note " + $("note-name").value + " " + text).replace(/\s+/g, " "), [$("note-text")]);
+};
+$("f-balance").onsubmit = e => {
+  e.preventDefault();
+  const p = price($("balance"));
+  if (p === null || p < 100) return fail(e.target, $("balance"), "Enter your balance as a number, 100 or more.");
+  send(e.target, "balance " + p, [$("balance")]);
+};
+show();
+})();
+</script>
+</body>
+</html>

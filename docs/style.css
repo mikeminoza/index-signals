@@ -30,7 +30,8 @@ table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--muted);font-weight:500}
-.nav{display:flex;gap:6px;margin:0 0 14px}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
 .nav a{font-size:13px;color:var(--muted);text-decoration:none;padding:5px 12px;border:1px solid var(--line);border-radius:999px}
 .nav a:hover{border-color:var(--line2);color:var(--text)}
 .nav a[aria-current="page"]{color:var(--text);border-color:var(--line2);background:var(--card);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}

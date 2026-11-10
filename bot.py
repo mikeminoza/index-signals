@@ -20,6 +20,7 @@ usage: python3 bot.py [--dry-run] [--no-fetch] [--state DIR] [--docs DIR]
 """
 import argparse
 import csv
+import glob
 import html
 import json
 import lzma
@@ -488,6 +489,29 @@ def handle_replies(j, cfg, updates, chat_id, offset_hours):
     return acks
 
 
+def handle_inbox(j, cfg, folder, today_local):
+    """Input sent from the website: one small JSON file per entry, applied like a Telegram reply.
+
+    The site only adds files and the bot only deletes them, so the two never edit the same file.
+    """
+    acks = []
+    for p in sorted(glob.glob(os.path.join(folder, "*.json"))):
+        text, day = "", today_local
+        try:
+            with open(p, encoding="utf-8") as f:
+                item = json.load(f)
+            text = str(item.get("text", "")).strip()[:200]
+            sent = datetime.fromisoformat(str(item["at"]).replace("Z", "+00:00"))
+            day = (sent + timedelta(hours=cfg["utc_offset_hours"])).date().isoformat()
+        except Exception:  # a malformed file is dropped, never fatal
+            pass
+        ack = apply_command(j, cfg, text, day) if text else None
+        if ack:
+            acks.append("Website: " + ack)
+        os.remove(p)
+    return acks
+
+
 # --- reporting ----------------------------------------------------------------------------
 
 def money(v):
@@ -889,6 +913,7 @@ def main():
         print(f"TELEGRAM_CHAT_ID is not set. Chats that messaged the bot: {', '.join(sorted(seen))}")
         sys.exit(1)
     acks = handle_replies(j, cfg, updates, chat, cfg["utc_offset_hours"])
+    acks += handle_inbox(j, cfg, os.path.join(args.state, "inbox"), now_local.date().isoformat())
     stamp = f"{now_local:%d %b %Y %H:%M}"
     if acks:
         j["last_reply"] = stamp

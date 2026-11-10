@@ -38,7 +38,7 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
 </head>
 <body>
 <main>
-  <nav class="nav" aria-label="Pages"><a href="index.html">Calendar</a><a href="guide.html">How it works</a><a href="settings.html" aria-current="page">Settings</a></nav>
+  <nav class="nav" aria-label="Pages"><a href="index.html">Calendar</a><a href="guide.html">How it works</a><a href="input.html">Enter data</a><a href="settings.html" aria-current="page">Settings</a></nav>
   <h1>Settings and setup</h1>
   <p class="lead">Is everything working, what the bot is set to, and how to change it.</p>
 
@@ -70,6 +70,12 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
   <div id="result" style="display:none;margin-top:12px">
     <textarea id="output" readonly aria-label="New config.json"></textarea>
     <div class="row">
+      <button id="save">Save to GitHub</button>
+      <span id="save-note" style="font-size:13px" role="alert"></span>
+    </div>
+    <p class="muted" id="save-hint" style="font-size:13px;margin-top:8px"></p>
+    <p class="muted" style="font-size:13px;margin:14px 0 0">Or do it by hand:</p>
+    <div class="row" style="margin-top:6px">
       <button id="copy">Copy</button>
       <a class="btn" id="edit-link" target="_blank" rel="noopener">Open config.json on GitHub ↗</a>
       <span class="muted" id="copy-note" style="font-size:13px"></span>
@@ -100,6 +106,7 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
   <p class="muted" style="font-size:12px;margin-top:24px">For the daily routine and the reply commands, see <a href="guide.html" style="color:inherit">How it works</a>.</p>
 </main>
 <script src="data.js"></script>
+<script src="github.js"></script>
 <script>
 (function(){
 const T = window.TRACKER || {};
@@ -280,6 +287,20 @@ $("build").onclick = () => {
   $("copy-note").textContent = "";
   const link = $("edit-link");
   if (github) { link.href = github + "/edit/main/config.json"; link.style.display = ""; } else link.style.display = "none";
+  const on = window.GH && GH.connected();
+  $("save").disabled = !on;
+  $("save-note").textContent = "";
+  $("save-hint").textContent = on ? "Saves this file straight to your repository. The next bot run uses it."
+    : "To save with one click, connect this browser on the Enter data page first.";
+};
+$("save").onclick = async () => {
+  const note = $("save-note");
+  $("save").disabled = true; note.style.color = "var(--muted)"; note.textContent = "Saving…";
+  try {
+    await GH.replace("config.json", $("output").value, "Settings: update from the website");
+    note.style.color = "var(--up)"; note.textContent = "Saved. The next bot run uses the new settings.";
+  } catch (e) { note.style.color = "var(--down)"; note.textContent = e.message; }
+  $("save").disabled = false;
 };
 $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText($("output").value); $("copy-note").textContent = "Copied."; }
