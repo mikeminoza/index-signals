@@ -25,6 +25,7 @@ import json
 import lzma
 import math
 import os
+import re
 import struct
 import sys
 import time
@@ -535,114 +536,195 @@ def fill_quality(j):
 
 
 def reminders_due(j, cfg, today_local):
-    """Today's signals you haven't reported a price for (or skipped)."""
+    """(name, side) of today's signals you haven't reported a price for or skipped."""
     names = {m["code"]: m["name"] for m in cfg["markets"]}
-    out = []
-    for code, q in j["pending"].items():
-        if q.get("taken", True) and not q.get("user_fill") and next_weekday(q["signal_date"]) == today_local:
-            out.append(f"{names[code]}: you haven't reported your {q['side']} price yet. Reply "
-                       f"filled {names[code]} PRICE, or skip {names[code]} if you didn't trade it.")
-    return out
+    return [(names[code], q["side"]) for code, q in j["pending"].items()
+            if q.get("taken", True) and not q.get("user_fill") and next_weekday(q["signal_date"]) == today_local]
 
 
-def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders):
+def esc(text):
+    return html.escape(text, quote=False)
+
+
+def copyable(text):
+    """Tap-to-copy text in Telegram."""
+    return f"<code>{esc(text)}</code>"
+
+
+def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders, watch=()):
+    """The Telegram message (HTML). The first line is what the phone notification shows."""
     today_local = now_local.date()
-    footer = ["", f"Calendar: {page_url}" if page_url else "",
-              "Reply: filled NAME PRICE · skip NAME · note TEXT · help"]
     if not processed:
         # Evening or manual run with no new trading day: only what needs your attention
-        lines = [f"<b>IndexPullback · {today_local:%a %d %b}, update</b>"]
-        if reminders:
-            lines += ["", "<b>Reminders</b>"] + [html.escape(r, quote=False) for r in reminders]
+        head = "⏰ <b>Reminder</b>" if reminders else "📝 <b>Update</b>"
+        lines = [f"{head} · {today_local:%a %d %b}"]
+        for name, side in reminders:
+            lines += ["", f"<b>{name}</b>: no {side} price reported yet.",
+                      f"Traded it? Reply {copyable(f'filled {name} ')}+ your price",
+                      f"Didn't trade it? Reply {copyable(f'skip {name}')}"]
         if acks:
-            lines += ["", "<b>Your replies</b>"] + [html.escape(a, quote=False) for a in acks]
+            lines += ["", "<b>Your replies</b>"] + ["✔ " + esc(a) for a in acks]
         if problems:
-            lines += ["", "⚠ " + "; ".join(html.escape(p, quote=False) for p in problems)]
-        return "\n".join(x for x in lines + footer if x is not None)
+            lines += ["", "⚠ " + "; ".join(esc(p) for p in problems)]
+        return "\n".join(lines)
 
     by_code = {m["code"]: m for m in cfg["markets"]}
-    lines = [f"<b>IndexPullback · {today_local:%a %d %b %Y}</b>", ""]
-    if now_local.hour >= 12:
-        lines += ["⚠ Late update: the morning run didn't go through (GitHub delay). These signals were "
-                  "meant for this morning's open, so entering now is later than tested.", ""]
-    actions = []
+    rsi_now = {w["name"]: w["rsi"] for w in watch}
+    exit_rsi = cfg.get("exit_rsi")
+
+    # What to do: one block per trade
+    blocks, not_traded, when = [], [], today_local
     for code, q in j["pending"].items():
         m = by_code[code]
-        when = next_weekday(q["signal_date"])
-        at = "at the open" if when <= today_local else f"at the open on {when:%a %d %b}"
-        check = f" ⚠ Borderline: {q['borderline']}. Check your MT5 chart." if q.get("borderline") else ""
+        name = m["name"]
+        due = next_weekday(q["signal_date"])
+        at = "at the open" if due <= today_local else f"at the open on {due:%A}"
+        warn = [f"⚠ Borderline: {q['borderline']}. Check your MT5 chart first."] if q.get("borderline") else []
+        reply = f"Then reply {copyable(f'filled {name} ')}+ your price"
         if q["side"] == "buy" and q.get("too_small"):
-            actions.append(f"⚪ {m['name']} buy signal (RSI {q['rsi']:.1f}), but {q['too_small']:.2f} lots is "
-                           f"below your broker's {m.get('min_lot') or m.get('lot_step')} minimum, so it's skipped.")
+            not_traded.append(f"⚪ {name}: buy signal (RSI {q['rsi']:.1f}), but {q['too_small']:.2f} lots is below "
+                              f"your broker's {m.get('min_lot') or m.get('lot_step')} minimum. Not traded.")
         elif q["side"] == "buy":
-            cut = ", reduced to stay under the exposure cap" if q.get("capped") else ""
-            size = (f"Volume {q['lots']:g} lots (risk ≈ ${q['risk_usd']:,.0f} per normal day{cut})" if q.get("lots")
-                    else f"Size ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut}")
-            actions.append(f"🟢 <b>BUY {m['name']}</b> {at}. Stop loss {q['stop']:,.2f}. {size}. "
-                           f"(RSI {q['rsi']:.1f}){check}")
+            cut = " (reduced to stay under the exposure cap)" if q.get("capped") else ""
+            if q.get("lots"):
+                size = f"Volume: <b>{q['lots']:g} lots</b>{cut}, risk ≈ ${q['risk_usd']:,.0f} per normal day"
+            else:
+                size = f"Size: ≈ {SYMBOL[m['ccy']]}{q['units']:.2f} per point{cut}"
+            stop = copyable(format(q["stop"], ".2f"))
+            blocks.append([f"🟢 <b>BUY {name}</b> {at}", f"Stop loss: {stop}", size,
+                           f"Why: sharp dip (2-day RSI {q['rsi']:.1f}) in an uptrend"] + warn + [reply])
+            when = max(when, due)
         elif j["positions"].get(code, {}).get("taken", True):
-            actions.append(f"🔴 <b>SELL {m['name']}</b> {at} ({q.get('why', 'the sell rule triggered')}).{check}")
+            p = j["positions"].get(code)
+            so_far = []
+            if p and p["marks"]:
+                change = (p["marks"][-1][1] / p["entry"] - 1) * 100
+                so_far = [f"Result so far: {change:+.2f}% since {date.fromisoformat(p['entry_date']):%d %b}"]
+            blocks.append([f"🔴 <b>SELL {name}</b> {at}", f"Why: {q.get('why', 'the sell rule triggered')}"]
+                          + so_far + warn + [reply])
+            when = max(when, due)
+
+    n = len(blocks)
+    trades = f"{n} trade{'s' if n != 1 else ''} to place"
+    late = now_local.hour >= 12
+    if late:
+        head = f"⚠ <b>Late update: {trades}</b>" if n else "⚠ <b>Late update: no action</b>"
+    elif n:
+        head = f"🔔 <b>{trades} {'today' if when <= today_local else f'on {when:%A}'}</b>"
+    else:
+        head = "✅ <b>No action today</b>"
+    lines = [f"{head} · {today_local:%a %d %b}"]
+    if late:
+        lines.append("The morning run didn't go through, so this is later than the tested entry time.")
+    latest = max(j["last_bar"].values(), default="")
+    if not n and latest:
+        lines.append(f"All {len(cfg['markets'])} indices checked on {date.fromisoformat(latest):%A}'s close.")
+    for block in blocks:
+        lines += [""] + block
+
+    # What happened since the last message
+    happened = []
     for kind, t in ev:
         if kind in ("stopped", "sold", "bought") and not t["taken"]:
             continue  # a signal you didn't take: it stays in the strategy record on the calendar
         if kind == "stopped":
-            actions.append(f"⛔ {t['name']} hit its stop at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
+            happened.append(f"⛔ {t['name']} hit its stop at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
         elif kind == "sold":
-            actions.append(f"✅ {t['name']} sold at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
+            icon = "✅" if t["pnl"] > 0 else "🔻"
+            happened.append(f"{icon} {t['name']} sold at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
         elif kind == "bought":
-            how = "your price" if t["entry_source"] == "you" else "assumed open, reply filled to correct"
-            actions.append(f"• {t['name']} bought at {t['entry']:,.2f} ({how})")
+            fix = copyable(f"filled {t['name']} ")
+            how = "your price" if t["entry_source"] == "you" else f"assumed open; reply {fix}+ price to correct"
+            happened.append(f"➕ {t['name']} bought at {t['entry']:,.2f} ({how})")
         elif kind == "capped":
-            actions.append(f"• {t['name']} signal skipped: total exposure already at the cap")
-    lines += actions or ["No action today."]
-
-    latest = max(j["last_bar"].values(), default="")
-    near = [t for kind, t in ev if kind == "near" and t["day"] == latest]
-    if near:
-        lines += ["", "Close calls, no signal on my data. Your broker's chart can differ slightly, so check MT5:"]
-        lines += [f"• {t['name']}: {t['text']}" for t in near]
+            happened.append(f"⚪ {t['name']}: buy signal skipped, total exposure already at the cap")
+    happened += not_traded
+    if happened:
+        lines += ["", "<b>Since the last update</b>"] + happened
 
     holding = [p for c, p in j["positions"].items() if c not in j["pending"] and p["taken"]]
     if holding:
-        lines.append("")
+        lines += ["", "<b>Holding</b>"]
         for p in holding:
             change = round((p["marks"][-1][1] / p["entry"] - 1) * 100, 2) + 0.0  # + 0.0 turns -0.0 into 0.0
-            lines.append(f"Holding {p['name']}: {change:+.2f}% since "
-                         f"{date.fromisoformat(p['entry_date']):%d %b}, stop {p['stop']:,.2f}")
+            r = rsi_now.get(p["name"])
+            wait = f" · RSI {r:.0f}, sells above {exit_rsi:g}" if r is not None and exit_rsi else ""
+            lines.append(f"{p['name']} {change:+.2f}% · since {date.fromisoformat(p['entry_date']):%d %b}{wait} "
+                         f"· stop {p['stop']:,.2f}")
     skipped = [p["name"] for p in j["positions"].values() if not p["taken"]]
     if skipped:
-        lines.append(f"Skipped signals still tracked for the record (not in your account): {', '.join(skipped)}")
-    busy = set(j["pending"]) | set(j["positions"])
-    idle = [m["name"] for m in cfg["markets"] if m["code"] not in busy]
-    if idle:
-        lines.append(f"No signal: {', '.join(idle)}")
+        lines.append(f"Not in your account, tracked for the record: {', '.join(skipped)}")
+
+    # What the bot is waiting for
+    watching = sorted((w for w in watch if w["status"] == "watching" and w["rsi"] is not None), key=lambda w: w["rsi"])
+    down = [w["name"] for w in watch if w["status"] == "downtrend"]
+    near = [t for kind, t in ev if kind == "near" and t["day"] == latest]
+    if watching or down or near:
+        lines += ["", "<b>Watching</b>"]
+        if watching:
+            w = watching[0]
+            lines.append(f"Closest to a buy: {w['name']} (2-day RSI {w['rsi']:.0f}, buys below {cfg['rsi_below']:g})")
+        if down:
+            lines.append(f"In a downtrend, no buys: {', '.join(down)}")
+        if near:
+            lines.append("Close calls on my data. Your broker's chart can differ slightly, so check MT5:")
+            lines += [f"• {t['name']}: {t['text']}" for t in near]
 
     mine = [t for t in j["trades"] if t["taken"]]
     s = stats(mine)
     month = today_local.strftime("%Y-%m")
     month_pnl = sum(t["pnl"] for t in mine if t["exit_date"].startswith(month))
-    lines += ["", f"Your record: {s['n']} trades · {s['wins']} wins ({s['win_rate']:.0f}%) · "
+    lines += ["", "<b>Your record</b>"]
+    if s["n"]:
+        lines += [f"{s['n']} trade{'s' if s['n'] != 1 else ''} · {s['wins']} won ({s['win_rate']:.0f}%) · "
                   f"avg {s['avg_ret']:+.2f}% · total {money(s['total'])}",
-              f"This month: {money(month_pnl)} · {verdict(s)}"]
+                  f"This month {money(month_pnl)} · {verdict(s)}"]
+    else:
+        lines.append("No closed trades yet.")
     fills, cost = fill_quality(j)
     if fills:
         word = "better" if cost <= 0 else "worse"
         lines.append(f"Your fills: {abs(cost):.2f}% {word} than the assumed prices on average "
                      f"({fills} fill{'s' if fills != 1 else ''})")
+
+    todo = []
     if j.get("balance_month") != month:
-        lines.append(f"Monthly check: reply balance AMOUNT with your demo balance so sizes match "
-                     f"(now sizing from ${sizing_equity(j, cfg):,.0f}).")
+        todo.append(f"Monthly check: reply {copyable('balance ')}+ your demo balance so sizes match "
+                    f"(now sizing from ${sizing_equity(j, cfg):,.0f}).")
     if cfg.get("token_expires"):
         left = (date.fromisoformat(cfg["token_expires"]) - today_local).days
         if left <= 14:
-            when = f"expires in {left} days" if left >= 0 else "has expired"
-            lines.append(f"⚠ Your cron-job.org GitHub token {when} ({cfg['token_expires']}). Regenerate it on GitHub, "
-                         "paste it into cron-job.org, then update token_expires in config.json.")
+            state = f"expires in {left} days" if left >= 0 else "has expired"
+            todo.append(f"⚠ Your cron-job.org GitHub token {state} ({cfg['token_expires']}). Regenerate it on GitHub, "
+                        "paste it into cron-job.org, then update the date on the Settings page.")
+    if todo:
+        lines += ["", "<b>To do</b>"] + todo
     if acks:
-        lines += ["", "<b>Your replies</b>"] + [html.escape(a, quote=False) for a in acks]
+        lines += ["", "<b>Your replies</b>"] + ["✔ " + esc(a) for a in acks]
     if problems:
-        lines += ["", "⚠ " + "; ".join(html.escape(p, quote=False) for p in problems)]
-    return "\n".join(x for x in lines + footer if x is not None)
+        lines += ["", "⚠ " + "; ".join(esc(p) for p in problems)]
+    if not n:
+        lines += ["", f"Send {copyable('help')} for the list of replies."]
+    return "\n".join(lines)
+
+
+def send_message(token, chat, text, page_url):
+    """Send, split at blank lines if over Telegram's 4096-character limit; the last part gets the site buttons."""
+    parts, cur = [], ""
+    for block in text.split("\n\n"):
+        if cur and len(cur) + len(block) + 2 > 3800:
+            parts.append(cur)
+            cur = block
+        else:
+            cur = f"{cur}\n\n{block}" if cur else block
+    parts.append(cur)
+    for k, part in enumerate(parts):
+        extra = {}
+        if page_url and k == len(parts) - 1:
+            extra["reply_markup"] = {"inline_keyboard": [[{"text": "📅 Calendar", "url": page_url},
+                                                          {"text": "⚙ Settings", "url": page_url + "settings.html"}]]}
+        telegram(token, "sendMessage", chat_id=chat, text=part, parse_mode="HTML",
+                 disable_web_page_preview=True, **extra)
 
 
 def market_watch(j, cfg, data, until):
@@ -841,14 +923,15 @@ def main():
         reminders = reminders_due(j, cfg, today_local)
         j["reminded_on"] = today_local.isoformat()
     if processed or acks or problems or reminders:
-        msg = compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders)
+        msg = compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders,
+                      market_watch(j, cfg, data, today.isoformat()))
         if processed:
             j["balance_month"] = today_local.strftime("%Y-%m")
         if args.dry_run or not token or not chat:
-            print(msg.replace("<b>", "").replace("</b>", ""))
+            print(html.unescape(re.sub(r"</?(b|code)>", "", msg)))
             print("-" * 60)
         else:
-            telegram(token, "sendMessage", chat_id=chat, text=msg, parse_mode="HTML", disable_web_page_preview=True)
+            send_message(token, chat, msg, page_url)
             j["last_sent"] = stamp
             if processed:
                 j["last_morning"] = today_local.isoformat()
