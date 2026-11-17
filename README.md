@@ -206,7 +206,14 @@ secrets or change your code. You can delete it any time on the same page.
    - Request body: `{"ref":"main"}`
 4. Save, then click **Test run**. A good result is **HTTP 204**, and a new run appears in your
    repository's **Actions** tab within a few seconds.
-5. Optional: a second job, every day at **20:20**, for your evening replies and reminders.
+
+**3. Faster Telegram replies**
+
+The bot only reads your Telegram messages when a run starts, so it answers at the next run.
+To get an answer within about 15 minutes, change the job's schedule to **every 15 minutes,
+every day** (minutes 5, 20, 35 and 50 of every hour). That one job then covers the 09:05
+morning run and the evening reminders too. A run with nothing new takes a few seconds and
+saves nothing.
 
 ## Good to know
 

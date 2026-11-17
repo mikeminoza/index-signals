@@ -1,6 +1,6 @@
 """IndexPullback signal bot: daily RSI(2) pullback signals for six stock indices.
 
-Runs on GitHub Actions twice a day using only the Python standard library.
+Runs on GitHub Actions every 15 minutes (started by cron-job.org) using only the Python standard library.
 Each run:
   1. reads your Telegram replies (filled / skip / note / balance / help)
   2. tops up the daily price history from Dukascopy's public datafeed
@@ -43,7 +43,7 @@ SYMBOL = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}
 EXPECT_WIN, EXPECT_AVG = 75.0, 0.53  # backtest 2014-2026 with the RSI > 70 exit: win rate %, average trade %
 DATAFEED = ("https://datafeed.dukascopy.com/datafeed", "http://datafeed.dukascopy.com/datafeed")
 
-HELP = ("Replies I understand (I read them twice a day):\n"
+HELP = ("Replies I understand (I check for them every 15 minutes or so):\n"
         "filled US100 19940 - the price you actually got (buy or sell)\n"
         "skip US100 - you did not take this signal\n"
         "note US100 entered late - a note on a trade (or just: note text)\n"
@@ -854,6 +854,18 @@ def build_page(j, cfg, now_local, path, watch=None, system=None):
         f.write("window.TRACKER = " + json.dumps(out, ensure_ascii=False) + ";\n")
 
 
+def page_is_stale(path, cfg, now, max_hours=6):
+    """True when the page data is missing, older than max_hours, shows problems or has other settings."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        old = json.loads(text[text.index("{"):text.rindex("}") + 1])
+        age = now.timestamp() - old["system"]["ran_epoch"]
+        return age > max_hours * 3600 or old["config"] != cfg or bool(old["system"].get("problems"))
+    except Exception:
+        return True
+
+
 def write_trades_csv(j, path):
     cols = ["id", "name", "taken", "signal_date", "signal_rsi", "entry_date", "entry", "entry_source", "stop",
             "exit_date", "exit", "exit_source", "reason", "ret_pct", "pnl", "financing", "days_held", "notes"]
@@ -888,6 +900,7 @@ def main():
     if os.path.exists(jpath):
         with open(jpath, encoding="utf-8") as f:
             j = json.load(f)
+    journal_before = json.dumps(j, sort_keys=True)
 
     now = datetime.now(timezone.utc)
     today = date.fromisoformat(args.until) if args.until else now.date()
@@ -920,7 +933,10 @@ def main():
 
     # 2. Prices
     codes = [m["code"] for m in cfg["markets"]] + [p for p, _ in FX_PAIRS.values()]
-    problems = [] if args.no_fetch else update_cache(args.state, codes, today)
+    # In the first hour after midnight UTC the datafeed may not have yesterday's last minutes yet,
+    # so runs in that hour only read replies. The 09:05 PH run is the first to fetch prices.
+    too_early = not args.until and now.hour < 1
+    problems = [] if args.no_fetch or too_early else update_cache(args.state, codes, today)
     data = {m["code"]: indicators(load_bars(os.path.join(args.state, "bars", f"{m['code']}.csv")), cfg)
             for m in cfg["markets"]}
     conv = fx_converter(args.state)
@@ -977,8 +993,15 @@ def main():
         expected_bar=expected.isoformat(), bars={m["name"]: j["last_bar"].get(m["code"], "") for m in cfg["markets"]},
         sizing_equity=round(sizing_equity(j, cfg), 2), balance_set=bool(j.get("balance")),
         balance_month=j.get("balance_month"))
-    build_page(j, cfg, now_local, os.path.join(args.docs, "data.js"), market_watch(j, cfg, data, today.isoformat()),
-               system)
+    # The bot runs every 15 minutes to answer replies. A run where nothing happened leaves the page
+    # alone, so the repository doesn't get a new commit each time. It still refreshes every few
+    # hours so the Settings page can tell the bot is alive.
+    page = os.path.join(args.docs, "data.js")
+    quiet = not (processed or acks or problems or reminders) and json.dumps(j, sort_keys=True) == journal_before
+    if quiet and not page_is_stale(page, cfg, now):
+        print("nothing new")
+        return
+    build_page(j, cfg, now_local, page, market_watch(j, cfg, data, today.isoformat()), system)
     print(f"processed {len(processed)} day(s), {len(ev)} event(s), {len(acks)} repl(ies)")
 
 
