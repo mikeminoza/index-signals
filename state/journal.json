@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-13",
-  "USATECHIDXUSD": "2026-11-13",
-  "USA30IDXUSD": "2026-11-13",
-  "DEUIDXEUR": "2026-11-13",
-  "GBRIDXGBP": "2026-11-13",
-  "JPNIDXJPY": "2026-11-13"
+  "USA500IDXUSD": "2026-11-16",
+  "USATECHIDXUSD": "2026-11-16",
+  "USA30IDXUSD": "2026-11-16",
+  "DEUIDXEUR": "2026-11-16",
+  "GBRIDXGBP": "2026-11-16",
+  "JPNIDXJPY": "2026-11-16"
  },
  "balance": 10000.0,
  "positions": {},
@@ -18,7 +18,7 @@
  "next_id": 1,
  "reminded_on": "2026-11-16",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "14 Nov 2026 09:05",
+ "last_sent": "17 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-14"
+ "last_morning": "2026-11-17"
 }
