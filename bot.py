@@ -309,7 +309,7 @@ def step(j, cfg, m, ind, i, day, conv, ev):
             id=pend["id"], code=code, name=name, ccy=ccy, taken=pend["taken"], signal_date=pend["signal_date"],
             signal_rsi=pend["rsi"], signal_close=pend["close"], entry_date=day, entry=fill or o * (1 + half),
             assumed_entry=o * (1 + half), entry_source="you" if fill else "assumed", stop=pend["stop"],
-            units=pend["units"], lots=pend.get("lots"), too_small=bool(pend.get("too_small")), financing=0.0,
+            units=pend["units"], lots=pend.get("lots"), too_small=pend.get("too_small") is not None, financing=0.0,
             marks=[], notes=pend.get("notes", []))
         ev.append(("bought", pos))
     elif pend and pend["side"] == "sell" and pos is not None:
@@ -517,7 +517,7 @@ def handle_inbox(j, cfg, folder, today_local):
 # --- reporting ----------------------------------------------------------------------------
 
 def money(v):
-    return f"{'+' if v >= 0 else '-'}${abs(v):,.0f}"
+    return f"{'+' if round(v) >= 0 else '-'}${abs(v):,.0f}"  # round first, so -0.3 shows as +$0
 
 
 def stats(trades):
@@ -577,7 +577,15 @@ def copyable(text):
     return f"<code>{esc(text)}</code>"
 
 
-def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders, watch=()):
+def paper_pnl(p, conv=None, mark=None):
+    """An open trade's profit or loss in dollars at a daily close: the latest one, after financing so far,
+    or an earlier mark (before financing)."""
+    d, c = mark or p["marks"][-1]
+    rate = conv(p["ccy"], d) if conv else 1.0
+    return (c - p["entry"]) * p["units"] * rate - (p["financing"] if mark is None else 0.0)
+
+
+def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders, watch=(), conv=None):
     """The Telegram message (HTML). The first line is what the phone notification shows."""
     today_local = now_local.date()
     if not processed:
@@ -628,7 +636,8 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
             so_far = []
             if p and p["marks"]:
                 change = (p["marks"][-1][1] / p["entry"] - 1) * 100
-                so_far = [f"Result so far: {change:+.2f}% since {date.fromisoformat(p['entry_date']):%d %b}"]
+                so_far = [f"Result so far: {change:+.2f}% ({money(paper_pnl(p, conv))}) since "
+                          f"{date.fromisoformat(p['entry_date']):%d %b}"]
             blocks.append([f"🔴 <b>SELL {name}</b> {at}", f"Why: {q.get('why', 'the sell rule triggered')}"]
                           + so_far + warn + [reply])
             when = max(when, due)
@@ -678,8 +687,8 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
             change = round((p["marks"][-1][1] / p["entry"] - 1) * 100, 2) + 0.0  # + 0.0 turns -0.0 into 0.0
             r = rsi_now.get(p["name"])
             wait = f" · RSI {r:.0f}, sells above {exit_rsi:g}" if r is not None and exit_rsi else ""
-            lines.append(f"{p['name']} {change:+.2f}% · since {date.fromisoformat(p['entry_date']):%d %b}{wait} "
-                         f"· stop {p['stop']:,.2f}")
+            lines.append(f"{p['name']} {change:+.2f}% ({money(paper_pnl(p, conv))}) · since "
+                         f"{date.fromisoformat(p['entry_date']):%d %b}{wait} · stop {p['stop']:,.2f}")
     skipped = [p["name"] for p in j["positions"].values() if not p["taken"]]
     if skipped:
         lines.append(f"Not in your account, tracked for the record: {', '.join(skipped)}")
@@ -787,8 +796,7 @@ def market_watch(j, cfg, data, until):
     return out
 
 
-def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", generated=None, end_date=None):
-    """Writes the calendar data. var="HISTORY" with a generated label is the simulated past year."""
+def build_page(j, cfg, now_local, path, watch=None, system=None, conv=None):
     days = {}
 
     def not_taken(t):
@@ -810,7 +818,8 @@ def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", 
         for d, c in t["marks"]:
             if d > t["entry_date"] and (until is None or d < until):
                 change = round((c / t["entry"] - 1) * 100, 2) + 0.0  # + 0.0 turns -0.0 into 0.0
-                add(d, dict(kind="hold", name=t["name"], text=f"Holding. Close {c:,.2f}, {change:+.2f}% so far."))
+                worth = f" ({money(paper_pnl(t, conv, (d, c)))})" if t["taken"] else ""
+                add(d, dict(kind="hold", name=t["name"], text=f"Holding. Close {c:,.2f}, {change:+.2f}%{worth} so far."))
 
     for t in j["trades"]:
         opened(t)
@@ -827,6 +836,10 @@ def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", 
     for p in j["positions"].values():
         opened(p)
         holds(p)
+        if p["taken"]:
+            # The latest close shows what the open trade is worth right now
+            x = days.setdefault(p["marks"][-1][0], dict(pnl=0.0, items=[]))
+            x["open_pnl"] = x.get("open_pnl", 0.0) + paper_pnl(p, conv)
     for code, q in j["pending"].items():
         name = next(m["name"] for m in cfg["markets"] if m["code"] == code)
         when = next_weekday(q["signal_date"]).isoformat()
@@ -842,18 +855,21 @@ def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", 
         eq += t["pnl"]
         curve.append([t["exit_date"], round(eq, 2)])
     open_pos = [dict(name=p["name"], entry_date=p["entry_date"], entry=p["entry"], last=p["marks"][-1][1],
-                     ret=round((p["marks"][-1][1] / p["entry"] - 1) * 100, 2) + 0.0, stop=p["stop"], taken=p["taken"])
+                     ret=round((p["marks"][-1][1] / p["entry"] - 1) * 100, 2) + 0.0, stop=p["stop"], taken=p["taken"],
+                     pnl=round(paper_pnl(p, conv), 2), lots=p.get("lots"), too_small=p.get("too_small", False))
                 for p in j["positions"].values()]
-    trades = [dict(name=t["name"], taken=t["taken"], entry_date=t["entry_date"], exit_date=t["exit_date"],
+    trades = [dict(name=t["name"], taken=t["taken"], too_small=t.get("too_small", False),
+                   entry_date=t["entry_date"], exit_date=t["exit_date"],
                    entry=round(t["entry"], 2), exit=round(t["exit"], 2), ret=round(t["ret_pct"], 2),
                    pnl=round(t["pnl"], 2), reason=t["reason"], days=t["days_held"])
               for t in reversed(j["trades"])]
     s_mine, s_all = stats(mine), stats(j["trades"])
-    out = dict(generated=generated or f"{now_local:%d %b %Y %H:%M} {cfg['timezone_label']}",
-               start_date=j["start_date"], end_date=end_date,
+    out = dict(generated=f"{now_local:%d %b %Y %H:%M} {cfg['timezone_label']}", start_date=j["start_date"],
                start_equity=cfg["start_equity"], equity=round(cfg["start_equity"] + s_mine["total"], 2),
                mine=s_mine, all=s_all, verdict=verdict(s_mine), expect=dict(win=EXPECT_WIN, avg=EXPECT_AVG),
-               days={d: dict(pnl=round(v["pnl"], 2), items=v["items"]) for d, v in days.items()},
+               days={d: dict(pnl=round(v["pnl"], 2), items=v["items"],
+                             **({"open_pnl": round(v["open_pnl"], 2)} if "open_pnl" in v else {}))
+                     for d, v in days.items()},
                open=open_pos, trades=trades, curve=curve, watch=watch or [],
                fills=dict(zip(("n", "cost"), fill_quality(j))), system=system or {}, config=cfg,
                rules={k: cfg.get(k) for k in ("rsi_below", "exit_rsi", "exit_sma", "trend_sma", "stop_atr",
@@ -861,23 +877,7 @@ def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", 
                markets=[dict(name=m["name"], ccy=m["ccy"]) for m in cfg["markets"]])
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(f"window.{var} = " + json.dumps(out, ensure_ascii=False) + ";\n")
-
-
-def simulate_history(cfg, data, conv, start, until):
-    """The rules replayed over start..until as if every signal had been taken at the opening price.
-
-    It runs on the same price history, sizing and costs as the live journal, in a journal of its
-    own, so it never touches your record.
-    """
-    h = new_journal()
-    h["start_date"] = start
-    for m in cfg["markets"]:
-        before = [d for d in data[m["code"]]["dates"] if d < start]
-        h["last_bar"][m["code"]] = before[-1] if before else ""
-    process(h, cfg, data, conv, until)
-    h["pending"] = {}  # signals at the very end belong to the live journal, not to the simulation
-    return h
+        f.write("window.TRACKER = " + json.dumps(out, ensure_ascii=False) + ";\n")
 
 
 def page_is_stale(path, cfg, now, max_hours=6):
@@ -991,7 +991,7 @@ def main():
         j["reminded_on"] = today_local.isoformat()
     if processed or acks or problems or reminders:
         msg = compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminders,
-                      market_watch(j, cfg, data, today.isoformat()))
+                      market_watch(j, cfg, data, today.isoformat()), conv)
         if processed:
             j["balance_month"] = today_local.strftime("%Y-%m")
         if args.dry_run or not token or not chat:
@@ -1023,20 +1023,11 @@ def main():
     # alone, so the repository doesn't get a new commit each time. It still refreshes every few
     # hours so the Settings page can tell the bot is alive.
     page = os.path.join(args.docs, "data.js")
-    history = os.path.join(args.docs, "history.js")
     quiet = not (processed or acks or problems or reminders) and json.dumps(j, sort_keys=True) == journal_before
-    if quiet and not page_is_stale(page, cfg, now) and os.path.exists(history):
+    if quiet and not page_is_stale(page, cfg, now):
         print("nothing new")
         return
-    build_page(j, cfg, now_local, page, market_watch(j, cfg, data, today.isoformat()), system)
-
-    # The calendar's "Simulated: past year" view. The same inputs give the same file, so it only
-    # makes a commit when the settings or the start date change.
-    end = date.fromisoformat(j["start_date"])
-    begin = (end - timedelta(days=365)).isoformat()
-    sim = simulate_history(cfg, data, conv, begin, end.isoformat())
-    build_page(sim, cfg, None, history, var="HISTORY", end_date=end.isoformat(),
-               generated=f"Simulated {date.fromisoformat(begin):%d %b %Y} to {end:%d %b %Y}")
+    build_page(j, cfg, now_local, page, market_watch(j, cfg, data, today.isoformat()), system, conv)
     print(f"processed {len(processed)} day(s), {len(ev)} event(s), {len(acks)} repl(ies)")
 
 
