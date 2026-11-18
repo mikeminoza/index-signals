@@ -83,9 +83,9 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(-
   <h2>Your routine</h2>
   <div class="grid">
     <div class="rule"><span class="tag" style="background:var(--up-bg);color:var(--up)">BUY message</span>
-      <p style="margin:0">In the MT5 app, open the index, tap <b>Trade</b>, choose <b>Buy by market</b>, enter the volume and the <b>stop loss</b> from the message. Then reply <code>filled US100 19940</code> with your price.</p></div>
+      <p style="margin:0">In the MT5 app, open the index, tap <b>Trade</b>, choose <b>Buy by market</b>, enter the volume and the <b>stop loss</b> from the message. The bot records the trade at the opening price on its own; reply <code>filled US100 19940</code> only if your price was different.</p></div>
     <div class="rule"><span class="tag" style="background:var(--down-bg);color:var(--down)">SELL message</span>
-      <p style="margin:0">Close that position in the MT5 app. Reply <code>filled US100 20150</code> with your price if you like.</p></div>
+      <p style="margin:0">Close that position in the MT5 app. The bot records the sale at the opening price; reply <code>filled US100 20150</code> only if yours was different.</p></div>
     <div class="rule"><span class="tag" style="background:var(--sub);color:var(--muted)">Working out lots</span>
       <p style="margin:0">Once your broker's contract specs are in the settings, the message gives the exact volume. Until then: lots = size per point ÷ the index's contract size (in MT5: hold the symbol → <b>Specification</b>), rounded down.</p></div>
     <div class="rule"><span class="tag" style="background:var(--warn-line);color:var(--bg)">Warnings</span>

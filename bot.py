@@ -43,7 +43,8 @@ SYMBOL = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}
 EXPECT_WIN, EXPECT_AVG = 75.0, 0.53  # backtest 2014-2026 with the RSI > 70 exit: win rate %, average trade %
 DATAFEED = ("https://datafeed.dukascopy.com/datafeed", "http://datafeed.dukascopy.com/datafeed")
 
-HELP = ("Replies I understand (I check for them every 15 minutes or so):\n"
+HELP = ("No reply is needed: I record every signal at the opening price and track it to the sell.\n"
+        "Replies only correct that record (I check for them every 15 minutes or so):\n"
         "filled US100 19940 - the price you actually got (buy or sell)\n"
         "skip US100 - you did not take this signal\n"
         "note US100 entered late - a note on a trade (or just: note text)\n"
@@ -580,11 +581,13 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
     today_local = now_local.date()
     if not processed:
         # Evening or manual run with no new trading day: only what needs your attention
-        head = "⏰ <b>Reminder</b>" if reminders else "📝 <b>Update</b>"
+        head = "📝 <b>Today's trades: nothing to do</b>" if reminders else "📝 <b>Update</b>"
         lines = [f"{head} · {today_local:%a %d %b}"]
+        if reminders:
+            lines.append("I record every signal at the opening price, so these are already in your record.")
         for name, side in reminders:
-            lines += ["", f"<b>{name}</b>: no {side} price reported yet.",
-                      f"Traded it? Reply {copyable(f'filled {name} ')}+ your price",
+            lines += ["", f"<b>{side.upper()} {name}</b>: recorded at the open.",
+                      f"Different price? Reply {copyable(f'filled {name} ')}+ your price",
                       f"Didn't trade it? Reply {copyable(f'skip {name}')}"]
         if acks:
             lines += ["", "<b>Your replies</b>"] + ["✔ " + esc(a) for a in acks]
@@ -604,7 +607,8 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
         due = next_weekday(q["signal_date"])
         at = "at the open" if due <= today_local else f"at the open on {due:%A}"
         warn = [f"⚠ Borderline: {q['borderline']}. Check your MT5 chart first."] if q.get("borderline") else []
-        reply = f"Then reply {copyable(f'filled {name} ')}+ your price"
+        reply = (f"I record it at the opening price. Only if yours differs, reply "
+                 f"{copyable(f'filled {name} ')}+ your price")
         if q["side"] == "buy" and q.get("too_small"):
             not_traded.append(f"⚪ {name}: buy signal (RSI {q['rsi']:.1f}), but {q['too_small']:.2f} lots is below "
                               f"your broker's {m.get('min_lot') or m.get('lot_step')} minimum. Not traded.")
@@ -658,7 +662,7 @@ def compose(j, cfg, ev, now_local, acks, problems, page_url, processed, reminder
             happened.append(f"{icon} {t['name']} sold at {t['exit']:,.2f}: {t['ret_pct']:+.2f}% ({money(t['pnl'])})")
         elif kind == "bought":
             fix = copyable(f"filled {t['name']} ")
-            how = "your price" if t["entry_source"] == "you" else f"assumed open; reply {fix}+ price to correct"
+            how = "your price" if t["entry_source"] == "you" else f"opening price, recorded automatically; {fix}+ price to correct"
             happened.append(f"➕ {t['name']} bought at {t['entry']:,.2f} ({how})")
         elif kind == "capped":
             happened.append(f"⚪ {t['name']}: buy signal skipped, total exposure already at the cap")
