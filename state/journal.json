@@ -2,23 +2,44 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-16",
-  "USATECHIDXUSD": "2026-11-16",
-  "USA30IDXUSD": "2026-11-16",
-  "DEUIDXEUR": "2026-11-16",
-  "GBRIDXGBP": "2026-11-16",
-  "JPNIDXJPY": "2026-11-16"
+  "USA500IDXUSD": "2026-11-17",
+  "USATECHIDXUSD": "2026-11-17",
+  "USA30IDXUSD": "2026-11-17",
+  "DEUIDXEUR": "2026-11-17",
+  "GBRIDXGBP": "2026-11-17",
+  "JPNIDXJPY": "2026-11-17"
  },
  "balance": 10000.0,
  "positions": {},
- "pending": {},
+ "pending": {
+  "USA30IDXUSD": {
+   "side": "buy",
+   "id": 1,
+   "signal_date": "2026-11-17",
+   "close": 50911.163,
+   "rsi": 2.783200175710533,
+   "trend": 50841.76410999994,
+   "atr": 887.9518,
+   "stop": 48247.31,
+   "units": 0.05,
+   "ccy": "USD",
+   "capped": false,
+   "taken": true,
+   "user_fill": null,
+   "notes": [],
+   "lots": 0.05,
+   "too_small": null,
+   "risk_usd": 44.39759000000001,
+   "borderline": "the close is only 0.14% above the 200-day average"
+  }
+ },
  "trades": [],
  "notes": [],
  "telegram_offset": 240012133,
- "next_id": 1,
+ "next_id": 2,
  "reminded_on": "2026-11-17",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "17 Nov 2026 09:05",
+ "last_sent": "18 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-17"
+ "last_morning": "2026-11-18"
 }
