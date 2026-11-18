@@ -309,7 +309,8 @@ def step(j, cfg, m, ind, i, day, conv, ev):
             id=pend["id"], code=code, name=name, ccy=ccy, taken=pend["taken"], signal_date=pend["signal_date"],
             signal_rsi=pend["rsi"], signal_close=pend["close"], entry_date=day, entry=fill or o * (1 + half),
             assumed_entry=o * (1 + half), entry_source="you" if fill else "assumed", stop=pend["stop"],
-            units=pend["units"], lots=pend.get("lots"), financing=0.0, marks=[], notes=pend.get("notes", []))
+            units=pend["units"], lots=pend.get("lots"), too_small=bool(pend.get("too_small")), financing=0.0,
+            marks=[], notes=pend.get("notes", []))
         ev.append(("bought", pos))
     elif pend and pend["side"] == "sell" and pos is not None:
         fill = pend.get("user_fill")
@@ -786,8 +787,12 @@ def market_watch(j, cfg, data, until):
     return out
 
 
-def build_page(j, cfg, now_local, path, watch=None, system=None):
+def build_page(j, cfg, now_local, path, watch=None, system=None, var="TRACKER", generated=None, end_date=None):
+    """Writes the calendar data. var="HISTORY" with a generated label is the simulated past year."""
     days = {}
+
+    def not_taken(t):
+        return " Too small for your broker's minimum lot, so not traded." if t.get("too_small") else " You skipped this one."
 
     def add(day, item, pnl=0.0):
         x = days.setdefault(day, dict(pnl=0.0, items=[]))
@@ -799,7 +804,7 @@ def build_page(j, cfg, now_local, path, watch=None, system=None):
         add(t["entry_date"], dict(kind="buy" if t["taken"] else "missed", name=t["name"],
                                   text=f"Bought at {t['entry']:,.2f} ({src}). Stop {t['stop']:,.2f}. "
                                        f"Signal: RSI {t['signal_rsi']:.1f} at the close of {t['signal_date']}."
-                                       + ("" if t["taken"] else " You skipped this one.")))
+                                       + ("" if t["taken"] else not_taken(t))))
 
     def holds(t, until=None):
         for d, c in t["marks"]:
@@ -816,7 +821,7 @@ def build_page(j, cfg, now_local, path, watch=None, system=None):
         add(t["exit_date"], dict(kind="stop" if t["reason"] == "stop" else "sell", name=t["name"],
                                  ret=round(t["ret_pct"], 2), pnl=round(t["pnl"], 2) if t["taken"] else None,
                                  text=f"Sold at {t['exit']:,.2f} ({src}) because {why}. "
-                                      f"Held {t['days_held']} days." + ("" if t["taken"] else " Not taken by you.")
+                                      f"Held {t['days_held']} days." + ("" if t["taken"] else not_taken(t))
                                       + "".join(f" Note: {n}" for n in t.get("notes", []))),
             t["pnl"] if t["taken"] else 0.0)
     for p in j["positions"].values():
@@ -844,7 +849,8 @@ def build_page(j, cfg, now_local, path, watch=None, system=None):
                    pnl=round(t["pnl"], 2), reason=t["reason"], days=t["days_held"])
               for t in reversed(j["trades"])]
     s_mine, s_all = stats(mine), stats(j["trades"])
-    out = dict(generated=f"{now_local:%d %b %Y %H:%M} {cfg['timezone_label']}", start_date=j["start_date"],
+    out = dict(generated=generated or f"{now_local:%d %b %Y %H:%M} {cfg['timezone_label']}",
+               start_date=j["start_date"], end_date=end_date,
                start_equity=cfg["start_equity"], equity=round(cfg["start_equity"] + s_mine["total"], 2),
                mine=s_mine, all=s_all, verdict=verdict(s_mine), expect=dict(win=EXPECT_WIN, avg=EXPECT_AVG),
                days={d: dict(pnl=round(v["pnl"], 2), items=v["items"]) for d, v in days.items()},
@@ -855,7 +861,23 @@ def build_page(j, cfg, now_local, path, watch=None, system=None):
                markets=[dict(name=m["name"], ccy=m["ccy"]) for m in cfg["markets"]])
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write("window.TRACKER = " + json.dumps(out, ensure_ascii=False) + ";\n")
+        f.write(f"window.{var} = " + json.dumps(out, ensure_ascii=False) + ";\n")
+
+
+def simulate_history(cfg, data, conv, start, until):
+    """The rules replayed over start..until as if every signal had been taken at the opening price.
+
+    It runs on the same price history, sizing and costs as the live journal, in a journal of its
+    own, so it never touches your record.
+    """
+    h = new_journal()
+    h["start_date"] = start
+    for m in cfg["markets"]:
+        before = [d for d in data[m["code"]]["dates"] if d < start]
+        h["last_bar"][m["code"]] = before[-1] if before else ""
+    process(h, cfg, data, conv, until)
+    h["pending"] = {}  # signals at the very end belong to the live journal, not to the simulation
+    return h
 
 
 def page_is_stale(path, cfg, now, max_hours=6):
@@ -1001,11 +1023,20 @@ def main():
     # alone, so the repository doesn't get a new commit each time. It still refreshes every few
     # hours so the Settings page can tell the bot is alive.
     page = os.path.join(args.docs, "data.js")
+    history = os.path.join(args.docs, "history.js")
     quiet = not (processed or acks or problems or reminders) and json.dumps(j, sort_keys=True) == journal_before
-    if quiet and not page_is_stale(page, cfg, now):
+    if quiet and not page_is_stale(page, cfg, now) and os.path.exists(history):
         print("nothing new")
         return
     build_page(j, cfg, now_local, page, market_watch(j, cfg, data, today.isoformat()), system)
+
+    # The calendar's "Simulated: past year" view. The same inputs give the same file, so it only
+    # makes a commit when the settings or the start date change.
+    end = date.fromisoformat(j["start_date"])
+    begin = (end - timedelta(days=365)).isoformat()
+    sim = simulate_history(cfg, data, conv, begin, end.isoformat())
+    build_page(sim, cfg, None, history, var="HISTORY", end_date=end.isoformat(),
+               generated=f"Simulated {date.fromisoformat(begin):%d %b %Y} to {end:%d %b %Y}")
     print(f"processed {len(processed)} day(s), {len(ev)} event(s), {len(acks)} repl(ies)")
 
 

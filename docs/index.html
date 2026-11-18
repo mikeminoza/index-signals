@@ -29,6 +29,10 @@ svg text{fill:var(--muted);font-size:11px}
   .day .dots{display:flex}
   .day .p,.wk .p{font-size:12px}
 }
+.mode{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--sub);margin-top:14px}
+.mode button{border:0;border-radius:999px;background:transparent;font-size:13px;padding:5px 12px;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--line2)}
+.banner{border-left:3px solid var(--open);background:var(--card);border-radius:0;padding:10px 14px;margin-top:12px;font-size:14px}
 .dots{display:none;gap:3px;flex-wrap:wrap}
 .dot{width:7px;height:7px;border-radius:50%}
 </style>
@@ -41,6 +45,12 @@ svg text{fill:var(--muted);font-size:11px}
     <span class="muted" id="updated" style="font-size:12px"></span>
   </div>
   <div class="muted" style="font-size:13px">IndexPullback signals · RSI(2) pullbacks on six stock indices</div>
+
+  <div class="mode" id="mode" role="group" aria-label="Which results to show" hidden>
+    <button id="mode-live" aria-pressed="true">Your record (live)</button>
+    <button id="mode-sim" aria-pressed="false">Simulated: past year</button>
+  </div>
+  <div class="banner" id="banner" hidden></div>
 
   <div class="cards" id="cards"></div>
 
@@ -57,7 +67,7 @@ svg text{fill:var(--muted);font-size:11px}
     <span><span class="sw" style="background:var(--up-bg)"></span>Closed with profit</span>
     <span><span class="sw" style="background:var(--down-bg)"></span>Closed with loss</span>
     <span><span class="sw" style="background:var(--open-bg)"></span>Bought, holding or signal to act on</span>
-    <span><span class="sw" style="border:1.5px solid var(--warn-line)"></span>Signal you skipped</span>
+    <span><span class="sw" style="border:1.5px solid var(--warn-line)"></span><span id="legend-skip">Signal you skipped</span></span>
   </div>
   <div class="panel" id="detail"></div>
 
@@ -70,57 +80,114 @@ svg text{fill:var(--muted);font-size:11px}
   <h2>Trade history</h2>
   <div class="tbl" id="history"></div>
 
-  <p class="muted" style="font-size:12px;margin-top:28px">
-    Results use your reported prices where you replied "filled", otherwise the day's opening price plus half the
-    typical spread, minus an estimate of overnight financing. "Vs backtest" compares your trades with the
-    2014-2026 backtest: about 75% winners and +0.5% per trade on average.
-  </p>
+  <p class="muted" id="footnote" style="font-size:12px;margin-top:28px"></p>
 </main>
 <script src="data.js"></script>
+<script src="history.js"></script>
 <script>
 (function(){
-const T = window.TRACKER;
+const LIVE = window.TRACKER, SIM = window.HISTORY && window.HISTORY.start_date ? window.HISTORY : null;
 const $ = id => document.getElementById(id);
 const el = (tag, attrs, text) => { const e = document.createElement(tag); Object.assign(e, attrs || {}); if (text != null) e.textContent = text; return e; };
 const money = v => (v >= 0 ? "+" : "-") + "$" + Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 0});
 const pct = v => (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const longDate = s => new Date(s + "T00:00:00").toLocaleDateString(undefined, {day: "numeric", month: "short", year: "numeric"});
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-if (!T || !T.start_date) {
-  $("detail").textContent = "Waiting for the bot's first run. The calendar fills in after the first morning update.";
-  ["prev","next"].forEach(id => $(id).style.visibility = "hidden");
-  return;
-}
-$("updated").textContent = "Updated " + T.generated;
-
-const m = T.mine;
-const cards = [
-  ["Balance", "$" + T.equity.toLocaleString(undefined, {maximumFractionDigits: 0}), ""],
-  ["Total result", money(m.total), m.total >= 0 ? "up" : "down"],
-  ["Trades", m.n + " (" + m.wins + " wins)", ""],
-  ["Win rate", m.n ? m.win_rate.toFixed(0) + "%" : "–", ""],
-  ["Average trade", m.n ? pct(m.avg_ret) : "–", m.avg_ret >= 0 ? "up" : "down"],
-  ["Vs backtest", T.verdict, ""],
-  ["Your fills vs assumed", T.fills && T.fills.n ? pct(-T.fills.cost) + " (" + T.fills.n + ")" : "Reply \"filled\"",
-   T.fills && T.fills.n ? (T.fills.cost <= 0 ? "up" : "down") : ""],
-];
-cards.forEach(([k, v, c]) => {
-  const d = el("div", {className: "card"});
-  const small = k === "Vs backtest" || v.startsWith("Reply");
-  d.append(el("div", {className: "k"}, k), el("div", {className: "v " + c, style: small ? "font-size:14px;font-weight:600" : ""}, v));
-  $("cards").append(d);
-});
-
 const KIND = {
   buy: ["Buy", "var(--open)"], hold: ["Hold", "var(--muted)"], sell: ["Sell", "var(--text)"], stop: ["Stop", "var(--down)"],
   missed: ["Skipped", "var(--warn)"], note: ["Note", "var(--muted)"], "buy-next": ["Buy signal", "var(--open)"], "sell-next": ["Sell signal", "var(--open)"],
 };
-const start = new Date(T.start_date + "T00:00:00");
+const FOOT = {
+  live: "Results use your reported prices where you replied \"filled\", otherwise the day's opening price plus half the " +
+        "typical spread, minus an estimate of overnight financing. \"Vs backtest\" compares your trades with the " +
+        "2014-2026 backtest: about 75% winners and +0.5% per trade on average.",
+  sim: "Simulated with the bot's current settings: every signal bought and sold at the opening price plus half the " +
+       "typical spread, minus an estimate of overnight financing, exactly as live signals are recorded when you don't reply.",
+};
 const today = new Date();
-let view = new Date(today.getFullYear(), today.getMonth(), 1);
-const first = new Date(start.getFullYear(), start.getMonth(), 1);
-let selected = null;
+
+let T, mode, view, first, last, selected;
+const store = {
+  get() { try { return localStorage.getItem("calendar-mode"); } catch { return null; } },
+  set(v) { try { localStorage.setItem("calendar-mode", v); } catch { /* storage unavailable */ } },
+};
+
+if (!LIVE || !LIVE.start_date) {
+  $("detail").textContent = "Waiting for the bot's first run. The calendar fills in after the first morning update.";
+  ["prev","next"].forEach(id => $(id).style.visibility = "hidden");
+  return;
+}
+
+function setMode(next) {
+  mode = next === "sim" && SIM ? "sim" : "live";
+  T = mode === "sim" ? SIM : LIVE;
+  $("mode-live").setAttribute("aria-pressed", String(mode === "live"));
+  $("mode-sim").setAttribute("aria-pressed", String(mode === "sim"));
+  store.set(mode);
+
+  const start = new Date(T.start_date + "T00:00:00");
+  const end = mode === "sim" ? new Date(T.end_date + "T00:00:00") : today;
+  first = new Date(start.getFullYear(), start.getMonth(), 1);
+  last = new Date(end.getFullYear(), end.getMonth(), 1);
+  // Open on the latest month that has something in it
+  const keys = Object.keys(T.days).filter(k => k <= iso(end)).sort();
+  const latest = keys.pop();
+  view = mode === "live" || !latest ? new Date(last) : new Date(+latest.slice(0, 4), +latest.slice(5, 7) - 1, 1);
+  selected = null;
+
+  $("updated").textContent = mode === "sim" ? T.generated : "Updated " + T.generated;
+  $("legend-skip").textContent = mode === "sim" ? "Too small to trade" : "Signal you skipped";
+  $("footnote").textContent = FOOT[mode];
+  banner();
+  cards();
+  render();
+  if (latest && latest.slice(0, 7) === iso(view).slice(0, 7)) { selected = latest; render(); show(latest); }
+  else { $("detail").replaceChildren(el("div", {className: "muted"}, "Tap a day to see what happened.")); }
+  openTrades();
+  curve();
+  history();
+}
+
+function banner() {
+  const b = $("banner");
+  b.replaceChildren();
+  if (mode === "sim") {
+    b.hidden = false;
+    b.append(el("b", null, "Simulated, not your trades. "),
+      document.createTextNode(`What the bot's rules would have done from ${longDate(T.start_date)} to ${longDate(T.end_date)} ` +
+        "if every signal had been taken, with the same sizing and costs. This was an unusually good year for the strategy: " +
+        "over 2014-2026 it averaged about +4.5% a year."));
+  } else if (SIM && !LIVE.mine.n && !LIVE.open.length) {
+    b.hidden = false;
+    b.append(document.createTextNode("No trades yet in your live record. "));
+    const a = el("a", {href: "#", style: "color:inherit;font-weight:600"}, "See the simulated past year");
+    a.onclick = e => { e.preventDefault(); setMode("sim"); };
+    b.append(a, document.createTextNode(" for how the calendar looks with trades."));
+  } else b.hidden = true;
+}
+
+function cards() {
+  const m = T.mine, sim = mode === "sim";
+  const list = [
+    [sim ? "Simulated balance" : "Balance", "$" + T.equity.toLocaleString(undefined, {maximumFractionDigits: 0}), ""],
+    ["Total result", money(m.total), m.total >= 0 ? "up" : "down"],
+    ["Trades", m.n + " (" + m.wins + " wins)", ""],
+    ["Win rate", m.n ? m.win_rate.toFixed(0) + "%" : "–", ""],
+    ["Average trade", m.n ? pct(m.avg_ret) : "–", m.avg_ret >= 0 ? "up" : "down"],
+    ["Vs backtest", T.verdict, ""],
+  ];
+  if (sim) list.push(["Worst drop", m.max_dd ? "-$" + Math.round(m.max_dd).toLocaleString() : "$0", m.max_dd ? "down" : ""]);
+  else list.push(["Your fills vs assumed", T.fills && T.fills.n ? pct(-T.fills.cost) + " (" + T.fills.n + ")" : "Reply \"filled\"",
+                  T.fills && T.fills.n ? (T.fills.cost <= 0 ? "up" : "down") : ""]);
+  $("cards").replaceChildren();
+  list.forEach(([k, v, c]) => {
+    const d = el("div", {className: "card"});
+    const small = k === "Vs backtest" || v.startsWith("Reply");
+    d.append(el("div", {className: "k"}, k), el("div", {className: "v " + c, style: small ? "font-size:14px;font-weight:600" : ""}, v));
+    $("cards").append(d);
+  });
+}
 
 function render() {
   const cal = $("cal");
@@ -128,7 +195,7 @@ function render() {
   ["Mon","Tue","Wed","Thu","Fri","Week"].forEach(h => cal.append(el("div", {className: "hd"}, h)));
   $("month").textContent = MONTHS[view.getMonth()] + " " + view.getFullYear();
   $("prev").disabled = view <= first;
-  $("next").disabled = view.getFullYear() === today.getFullYear() && view.getMonth() === today.getMonth();
+  $("next").disabled = view >= last;
 
   const d = new Date(view);
   while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);  // first weekday of the month
@@ -139,7 +206,8 @@ function render() {
     for (let k = 0; k < 5; k++) {
       const day = new Date(d); day.setDate(d.getDate() + k);
       const key = iso(day), inMonth = day.getMonth() === view.getMonth(), info = T.days[key];
-      const b = el("button", {className: "day" + (inMonth ? "" : " out") + (key === iso(today) ? " today" : "") + (key === selected ? " sel" : "")});
+      const isToday = mode === "live" && key === iso(today);
+      const b = el("button", {className: "day" + (inMonth ? "" : " out") + (isToday ? " today" : "") + (key === selected ? " sel" : "")});
       b.setAttribute("aria-label", key);
       b.append(el("span", {className: "n"}, String(day.getDate())));
       if (info && inMonth) {
@@ -192,14 +260,10 @@ function show(key) {
   });
 }
 
-$("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); };
-$("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); };
-render();
-const latest = Object.keys(T.days).filter(k => k <= iso(today)).sort().pop();
-if (latest && latest.slice(0, 7) === iso(view).slice(0, 7)) { selected = latest; render(); show(latest); }
-else $("detail").append(el("div", {className: "muted"}, "Tap a day to see what happened."));
-
-if (T.open.length) {
+function openTrades() {
+  const box = $("open");
+  box.replaceChildren();
+  if (!T.open.length) { box.append(el("div", {className: "muted"}, mode === "sim" ? "None still open at the end." : "No open trades.")); return; }
   const tb = el("table"); const tr = el("tr");
   ["Index","Bought","Entry","Last close","So far","Stop"].forEach(h => tr.append(el("th", null, h))); tb.append(tr);
   T.open.forEach(p => {
@@ -208,20 +272,23 @@ if (T.open.length) {
     r.append(el("td", {className: p.ret >= 0 ? "up" : "down"}, pct(p.ret)), el("td", null, p.stop.toFixed(2)));
     tb.append(r);
   });
-  $("open").append(el("div", {className: "tbl"}).appendChild(tb).parentNode);
-} else $("open").append(el("div", {className: "muted"}, "No open trades."));
+  const wrap = el("div", {className: "tbl"}); wrap.append(tb); box.append(wrap);
+}
 
-const pts = [[T.start_date, T.start_equity]].concat(T.curve);
-if (pts.length > 1) {
+function curve() {
+  const box = $("curve");
+  box.replaceChildren();
+  const pts = [[T.start_date, T.start_equity]].concat(T.curve);
+  if (pts.length < 2) { box.append(el("div", {className: "muted"}, "The curve builds as trades close.")); return; }
   // Drawn at the real width so the labels stay readable on phones
-  const W = Math.max(280, $("curve").clientWidth || 800), H = 200, L = 56, R = 10, Tp = 10, B = 24;
+  const W = Math.max(280, box.clientWidth || 800), H = 200, L = 56, R = 10, Tp = 10, B = 24;
   const xs = pts.map(p => new Date(p[0]).getTime()), ys = pts.map(p => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs) || x0 + 1, y0 = Math.min(...ys), y1 = Math.max(...ys);
   const pad = (y1 - y0) * 0.1 || 50;
   const X = t => L + (t - x0) / ((x1 - x0) || 1) * (W - L - R), Y = v => Tp + (1 - (v - (y0 - pad)) / ((y1 - y0) + 2 * pad)) * (H - Tp - B);
   const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Account balance after each closed trade");
+  svg.setAttribute("aria-label", (mode === "sim" ? "Simulated account" : "Account") + " balance after each closed trade");
   for (const v of [y0 - pad, (y0 + y1) / 2, y1 + pad]) {
     const ln = document.createElementNS(ns, "line"); Object.entries({x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "currentColor", "stroke-opacity": .12}).forEach(([k, a]) => ln.setAttribute(k, a)); svg.append(ln);
     const tx = document.createElementNS(ns, "text"); tx.setAttribute("x", L - 6); tx.setAttribute("y", Y(v) + 4); tx.setAttribute("text-anchor", "end"); tx.textContent = "$" + Math.round(v).toLocaleString(); svg.append(tx);
@@ -230,23 +297,35 @@ if (pts.length > 1) {
   path.setAttribute("points", pts.map((p, i) => X(xs[i]) + "," + Y(p[1])).join(" "));
   Object.entries({fill: "none", stroke: "var(--accent)", "stroke-width": 2}).forEach(([k, a]) => path.setAttribute(k, a));
   svg.append(path);
-  $("curve").append(svg);
-} else $("curve").append(el("div", {className: "muted"}, "The curve builds as trades close."));
+  box.append(svg);
+}
 
-if (T.trades.length) {
+function history() {
+  const box = $("history");
+  box.replaceChildren();
+  if (!T.trades.length) { box.append(el("div", {className: "muted"}, "No closed trades yet.")); return; }
   const tb = el("table"); const tr = el("tr");
   ["Index","Bought","Sold","Entry","Exit","Result","P/L","Days","Exit"].forEach(h => tr.append(el("th", null, h))); tb.append(tr);
   T.trades.forEach(t => {
     const r = el("tr");
-    r.append(el("td", null, t.name + (t.taken ? "" : " (skipped)")), el("td", null, t.entry_date), el("td", null, t.exit_date),
+    r.append(el("td", null, t.name + (t.taken ? "" : mode === "sim" ? " (too small)" : " (skipped)")), el("td", null, t.entry_date), el("td", null, t.exit_date),
       el("td", null, t.entry.toFixed(2)), el("td", null, t.exit.toFixed(2)),
       el("td", {className: t.ret >= 0 ? "up" : "down"}, pct(t.ret)),
       el("td", {className: t.pnl >= 0 ? "up" : "down"}, t.taken ? money(t.pnl) : "–"),
       el("td", null, String(t.days)), el("td", null, t.reason === "stop" ? "stop loss" : "sell signal"));
     tb.append(r);
   });
-  $("history").append(tb);
-} else $("history").append(el("div", {className: "muted"}, "No closed trades yet."));
+  box.append(tb);  // #history already scrolls sideways on phones
+}
+
+$("prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); };
+$("next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); };
+if (SIM) {
+  $("mode").hidden = false;
+  $("mode-live").onclick = () => setMode("live");
+  $("mode-sim").onclick = () => setMode("sim");
+}
+setMode(store.get() || "live");
 })();
 </script>
 </body>
