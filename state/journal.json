@@ -2,44 +2,91 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-17",
-  "USATECHIDXUSD": "2026-11-17",
-  "USA30IDXUSD": "2026-11-17",
-  "DEUIDXEUR": "2026-11-17",
-  "GBRIDXGBP": "2026-11-17",
-  "JPNIDXJPY": "2026-11-17"
+  "USA500IDXUSD": "2026-11-18",
+  "USATECHIDXUSD": "2026-11-18",
+  "USA30IDXUSD": "2026-11-18",
+  "DEUIDXEUR": "2026-11-18",
+  "GBRIDXGBP": "2026-11-18",
+  "JPNIDXJPY": "2026-11-18"
  },
  "balance": 10000.0,
- "positions": {},
- "pending": {
+ "positions": {
   "USA30IDXUSD": {
-   "side": "buy",
    "id": 1,
+   "code": "USA30IDXUSD",
+   "name": "US30",
+   "ccy": "USD",
+   "taken": true,
    "signal_date": "2026-11-17",
-   "close": 50911.163,
-   "rsi": 2.783200175710533,
-   "trend": 50841.76410999994,
-   "atr": 887.9518,
+   "signal_rsi": 2.783200175710533,
+   "signal_close": 50911.163,
+   "entry_date": "2026-11-18",
+   "entry": 50915.957410425006,
+   "assumed_entry": 50915.957410425006,
+   "entry_source": "assumed",
    "stop": 48247.31,
    "units": 0.05,
-   "ccy": "USD",
+   "lots": 0.05,
+   "too_small": false,
+   "financing": 0.0,
+   "marks": [
+    [
+     "2026-11-18",
+     50317.675
+    ]
+   ],
+   "notes": []
+  }
+ },
+ "pending": {
+  "DEUIDXEUR": {
+   "side": "buy",
+   "id": 2,
+   "signal_date": "2026-11-18",
+   "close": 25812.077,
+   "rsi": 3.8189101091927995,
+   "trend": 24995.693440000017,
+   "atr": 457.0381999999994,
+   "stop": 24440.96,
+   "units": 0.09,
+   "ccy": "EUR",
    "capped": false,
    "taken": true,
    "user_fill": null,
    "notes": [],
-   "lots": 0.05,
+   "lots": 0.09,
    "too_small": null,
-   "risk_usd": 44.39759000000001,
-   "borderline": "the close is only 0.14% above the 200-day average"
+   "risk_usd": 45.12996283607993,
+   "borderline": null
+  },
+  "GBRIDXGBP": {
+   "side": "buy",
+   "id": 3,
+   "signal_date": "2026-11-18",
+   "close": 10569.31,
+   "rsi": 4.387557948978568,
+   "trend": 10562.354765000007,
+   "atr": 152.8361500000001,
+   "stop": 10110.8,
+   "units": 0.24,
+   "ccy": "GBP",
+   "capped": false,
+   "taken": true,
+   "user_fill": null,
+   "notes": [],
+   "lots": 0.24,
+   "too_small": null,
+   "risk_usd": 48.22004986284002,
+   "borderline": "RSI 4.4 is close to the 5 level and the close is only 0.07% above the 200-day average"
   }
  },
  "trades": [],
  "notes": [],
  "telegram_offset": 240012133,
- "next_id": 2,
+ "next_id": 4,
  "reminded_on": "2026-11-18",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "18 Nov 2026 18:05",
+ "last_sent": "19 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-18"
+ "last_morning": "2026-11-19"
 }
