@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-18",
-  "USATECHIDXUSD": "2026-11-18",
-  "USA30IDXUSD": "2026-11-18",
-  "DEUIDXEUR": "2026-11-18",
-  "GBRIDXGBP": "2026-11-18",
-  "JPNIDXJPY": "2026-11-18"
+  "USA500IDXUSD": "2026-11-19",
+  "USATECHIDXUSD": "2026-11-19",
+  "USA30IDXUSD": "2026-11-19",
+  "DEUIDXEUR": "2026-11-19",
+  "GBRIDXGBP": "2026-11-19",
+  "JPNIDXJPY": "2026-11-19"
  },
  "balance": 10000.0,
  "positions": {
@@ -28,65 +28,80 @@
    "units": 0.05,
    "lots": 0.05,
    "too_small": false,
-   "financing": 0.0,
+   "financing": 0.33616678767123287,
    "marks": [
     [
      "2026-11-18",
      50317.675
+    ],
+    [
+     "2026-11-19",
+     49080.351
+    ]
+   ],
+   "notes": []
+  },
+  "DEUIDXEUR": {
+   "id": 2,
+   "code": "DEUIDXEUR",
+   "name": "GER40",
+   "ccy": "EUR",
+   "taken": true,
+   "signal_date": "2026-11-18",
+   "signal_rsi": 3.8189101091927995,
+   "signal_close": 25812.077,
+   "entry_date": "2026-11-19",
+   "entry": 25812.590799125,
+   "assumed_entry": 25812.590799125,
+   "entry_source": "assumed",
+   "stop": 24440.96,
+   "units": 0.09,
+   "lots": 0.09,
+   "too_small": false,
+   "financing": 0.0,
+   "marks": [
+    [
+     "2026-11-19",
+     25250.499
+    ]
+   ],
+   "notes": []
+  },
+  "GBRIDXGBP": {
+   "id": 3,
+   "code": "GBRIDXGBP",
+   "name": "UK100",
+   "ccy": "GBP",
+   "taken": true,
+   "signal_date": "2026-11-18",
+   "signal_rsi": 4.387557948978568,
+   "signal_close": 10569.31,
+   "entry_date": "2026-11-19",
+   "entry": 10569.6966678,
+   "assumed_entry": 10569.6966678,
+   "entry_source": "assumed",
+   "stop": 10110.8,
+   "units": 0.24,
+   "lots": 0.24,
+   "too_small": false,
+   "financing": 0.0,
+   "marks": [
+    [
+     "2026-11-19",
+     10432.58
     ]
    ],
    "notes": []
   }
  },
- "pending": {
-  "DEUIDXEUR": {
-   "side": "buy",
-   "id": 2,
-   "signal_date": "2026-11-18",
-   "close": 25812.077,
-   "rsi": 3.8189101091927995,
-   "trend": 24995.693440000017,
-   "atr": 457.0381999999994,
-   "stop": 24440.96,
-   "units": 0.09,
-   "ccy": "EUR",
-   "capped": false,
-   "taken": true,
-   "user_fill": null,
-   "notes": [],
-   "lots": 0.09,
-   "too_small": null,
-   "risk_usd": 45.12996283607993,
-   "borderline": null
-  },
-  "GBRIDXGBP": {
-   "side": "buy",
-   "id": 3,
-   "signal_date": "2026-11-18",
-   "close": 10569.31,
-   "rsi": 4.387557948978568,
-   "trend": 10562.354765000007,
-   "atr": 152.8361500000001,
-   "stop": 10110.8,
-   "units": 0.24,
-   "ccy": "GBP",
-   "capped": false,
-   "taken": true,
-   "user_fill": null,
-   "notes": [],
-   "lots": 0.24,
-   "too_small": null,
-   "risk_usd": 48.22004986284002,
-   "borderline": "RSI 4.4 is close to the 5 level and the close is only 0.07% above the 200-day average"
-  }
- },
+ "pending": {},
  "trades": [],
  "notes": [],
  "telegram_offset": 240012133,
  "next_id": 4,
  "reminded_on": "2026-11-19",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "19 Nov 2026 18:05",
+ "last_sent": "20 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-19"
+ "last_morning": "2026-11-20"
 }
