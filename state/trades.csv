@@ -1,1 +1,2 @@
 id,name,taken,signal_date,signal_rsi,entry_date,entry,entry_source,stop,exit_date,exit,exit_source,reason,ret_pct,pnl,financing,days_held,notes
+1,US30,True,2026-11-17,2.7832,2026-11-18,50915.9574,assumed,48247.31,2026-11-20,48247.31,stop,stop,-5.2413,-133.7685,0.3362,2,

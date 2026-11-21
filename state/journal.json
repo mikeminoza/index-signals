@@ -2,16 +2,79 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-19",
-  "USATECHIDXUSD": "2026-11-19",
-  "USA30IDXUSD": "2026-11-19",
-  "DEUIDXEUR": "2026-11-19",
-  "GBRIDXGBP": "2026-11-19",
-  "JPNIDXJPY": "2026-11-19"
+  "USA500IDXUSD": "2026-11-20",
+  "USATECHIDXUSD": "2026-11-20",
+  "USA30IDXUSD": "2026-11-20",
+  "DEUIDXEUR": "2026-11-20",
+  "GBRIDXGBP": "2026-11-20",
+  "JPNIDXJPY": "2026-11-20"
  },
  "balance": 10000.0,
  "positions": {
-  "USA30IDXUSD": {
+  "DEUIDXEUR": {
+   "id": 2,
+   "code": "DEUIDXEUR",
+   "name": "GER40",
+   "ccy": "EUR",
+   "taken": true,
+   "signal_date": "2026-11-18",
+   "signal_rsi": 3.8189101091927995,
+   "signal_close": 25812.077,
+   "entry_date": "2026-11-19",
+   "entry": 25812.590799125,
+   "assumed_entry": 25812.590799125,
+   "entry_source": "assumed",
+   "stop": 24440.96,
+   "units": 0.09,
+   "lots": 0.09,
+   "too_small": false,
+   "financing": 0.3321208174608493,
+   "marks": [
+    [
+     "2026-11-19",
+     25250.499
+    ],
+    [
+     "2026-11-20",
+     24565.199
+    ]
+   ],
+   "notes": []
+  },
+  "GBRIDXGBP": {
+   "id": 3,
+   "code": "GBRIDXGBP",
+   "name": "UK100",
+   "ccy": "GBP",
+   "taken": true,
+   "signal_date": "2026-11-18",
+   "signal_rsi": 4.387557948978568,
+   "signal_close": 10569.31,
+   "entry_date": "2026-11-19",
+   "entry": 10569.6966678,
+   "assumed_entry": 10569.6966678,
+   "entry_source": "assumed",
+   "stop": 10110.8,
+   "units": 0.24,
+   "lots": 0.24,
+   "too_small": false,
+   "financing": 0.44139586674673964,
+   "marks": [
+    [
+     "2026-11-19",
+     10432.58
+    ],
+    [
+     "2026-11-20",
+     10267.192
+    ]
+   ],
+   "notes": []
+  }
+ },
+ "pending": {},
+ "trades": [
+  {
    "id": 1,
    "code": "USA30IDXUSD",
    "name": "US30",
@@ -39,69 +102,23 @@
      49080.351
     ]
    ],
-   "notes": []
-  },
-  "DEUIDXEUR": {
-   "id": 2,
-   "code": "DEUIDXEUR",
-   "name": "GER40",
-   "ccy": "EUR",
-   "taken": true,
-   "signal_date": "2026-11-18",
-   "signal_rsi": 3.8189101091927995,
-   "signal_close": 25812.077,
-   "entry_date": "2026-11-19",
-   "entry": 25812.590799125,
-   "assumed_entry": 25812.590799125,
-   "entry_source": "assumed",
-   "stop": 24440.96,
-   "units": 0.09,
-   "lots": 0.09,
-   "too_small": false,
-   "financing": 0.0,
-   "marks": [
-    [
-     "2026-11-19",
-     25250.499
-    ]
-   ],
-   "notes": []
-  },
-  "GBRIDXGBP": {
-   "id": 3,
-   "code": "GBRIDXGBP",
-   "name": "UK100",
-   "ccy": "GBP",
-   "taken": true,
-   "signal_date": "2026-11-18",
-   "signal_rsi": 4.387557948978568,
-   "signal_close": 10569.31,
-   "entry_date": "2026-11-19",
-   "entry": 10569.6966678,
-   "assumed_entry": 10569.6966678,
-   "entry_source": "assumed",
-   "stop": 10110.8,
-   "units": 0.24,
-   "lots": 0.24,
-   "too_small": false,
-   "financing": 0.0,
-   "marks": [
-    [
-     "2026-11-19",
-     10432.58
-    ]
-   ],
-   "notes": []
+   "notes": [],
+   "exit_date": "2026-11-20",
+   "exit": 48247.31,
+   "exit_source": "stop",
+   "reason": "stop",
+   "conv": 1.0,
+   "ret_pct": -5.241279053074632,
+   "pnl": -133.76853730892165,
+   "days_held": 2
   }
- },
- "pending": {},
- "trades": [],
+ ],
  "notes": [],
  "telegram_offset": 240012133,
  "next_id": 4,
  "reminded_on": "2026-11-20",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "20 Nov 2026 09:05",
+ "last_sent": "21 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-20"
+ "last_morning": "2026-11-21"
 }
