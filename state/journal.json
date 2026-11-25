@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-23",
-  "USATECHIDXUSD": "2026-11-23",
-  "USA30IDXUSD": "2026-11-23",
-  "DEUIDXEUR": "2026-11-23",
-  "GBRIDXGBP": "2026-11-23",
-  "JPNIDXJPY": "2026-11-23"
+  "USA500IDXUSD": "2026-11-24",
+  "USATECHIDXUSD": "2026-11-24",
+  "USA30IDXUSD": "2026-11-24",
+  "DEUIDXEUR": "2026-11-24",
+  "GBRIDXGBP": "2026-11-24",
+  "JPNIDXJPY": "2026-11-24"
  },
  "balance": 10000.0,
  "positions": {
@@ -28,7 +28,7 @@
    "units": 0.09,
    "lots": 0.09,
    "too_small": false,
-   "financing": 1.3551923656807396,
+   "financing": 1.6950634690176987,
    "marks": [
     [
      "2026-11-19",
@@ -41,6 +41,10 @@
     [
      "2026-11-23",
      25358.988
+    ],
+    [
+     "2026-11-24",
+     25148.766
     ]
    ],
    "notes": []
@@ -62,7 +66,7 @@
    "units": 0.24,
    "lots": 0.24,
    "too_small": false,
-   "financing": 1.7905058245321646,
+   "financing": 2.2428682133858633,
    "marks": [
     [
      "2026-11-19",
@@ -75,6 +79,10 @@
     [
      "2026-11-23",
      10494.216
+    ],
+    [
+     "2026-11-24",
+     10494.513
     ]
    ],
    "notes": []
@@ -126,7 +134,7 @@
  "next_id": 4,
  "reminded_on": "2026-11-24",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "24 Nov 2026 09:05",
+ "last_sent": "25 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-24"
+ "last_morning": "2026-11-25"
 }
