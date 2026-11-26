@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-24",
-  "USATECHIDXUSD": "2026-11-24",
-  "USA30IDXUSD": "2026-11-24",
-  "DEUIDXEUR": "2026-11-24",
-  "GBRIDXGBP": "2026-11-24",
-  "JPNIDXJPY": "2026-11-24"
+  "USA500IDXUSD": "2026-11-25",
+  "USATECHIDXUSD": "2026-11-25",
+  "USA30IDXUSD": "2026-11-25",
+  "DEUIDXEUR": "2026-11-25",
+  "GBRIDXGBP": "2026-11-25",
+  "JPNIDXJPY": "2026-11-25"
  },
  "balance": 10000.0,
  "positions": {
@@ -28,7 +28,7 @@
    "units": 0.09,
    "lots": 0.09,
    "too_small": false,
-   "financing": 1.6950634690176987,
+   "financing": 2.035588189042356,
    "marks": [
     [
      "2026-11-19",
@@ -45,6 +45,10 @@
     [
      "2026-11-24",
      25148.766
+    ],
+    [
+     "2026-11-25",
+     25178.066
     ]
    ],
    "notes": []
@@ -66,7 +70,7 @@
    "units": 0.24,
    "lots": 0.24,
    "too_small": false,
-   "financing": 2.2428682133858633,
+   "financing": 2.698405612791124,
    "marks": [
     [
      "2026-11-19",
@@ -83,12 +87,26 @@
     [
      "2026-11-24",
      10494.513
+    ],
+    [
+     "2026-11-25",
+     10568.413
     ]
    ],
    "notes": []
   }
  },
- "pending": {},
+ "pending": {
+  "GBRIDXGBP": {
+   "side": "sell",
+   "id": 3,
+   "signal_date": "2026-11-25",
+   "close": 10568.413,
+   "why": "the 2-day RSI closed at 78.3, above 70",
+   "borderline": null,
+   "user_fill": null
+  }
+ },
  "trades": [
   {
    "id": 1,
@@ -134,7 +152,7 @@
  "next_id": 4,
  "reminded_on": "2026-11-25",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "25 Nov 2026 09:05",
+ "last_sent": "26 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-25"
+ "last_morning": "2026-11-26"
 }
