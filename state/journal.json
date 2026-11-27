@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-25",
-  "USATECHIDXUSD": "2026-11-25",
-  "USA30IDXUSD": "2026-11-25",
-  "DEUIDXEUR": "2026-11-25",
-  "GBRIDXGBP": "2026-11-25",
-  "JPNIDXJPY": "2026-11-25"
+  "USA500IDXUSD": "2026-11-26",
+  "USATECHIDXUSD": "2026-11-26",
+  "USA30IDXUSD": "2026-11-26",
+  "DEUIDXEUR": "2026-11-26",
+  "GBRIDXGBP": "2026-11-26",
+  "JPNIDXJPY": "2026-11-26"
  },
  "balance": 10000.0,
  "positions": {
@@ -28,7 +28,7 @@
    "units": 0.09,
    "lots": 0.09,
    "too_small": false,
-   "financing": 2.035588189042356,
+   "financing": 2.376892234971986,
    "marks": [
     [
      "2026-11-19",
@@ -49,11 +49,56 @@
     [
      "2026-11-25",
      25178.066
+    ],
+    [
+     "2026-11-26",
+     25237.299
     ]
    ],
    "notes": []
+  }
+ },
+ "pending": {},
+ "trades": [
+  {
+   "id": 1,
+   "code": "USA30IDXUSD",
+   "name": "US30",
+   "ccy": "USD",
+   "taken": true,
+   "signal_date": "2026-11-17",
+   "signal_rsi": 2.783200175710533,
+   "signal_close": 50911.163,
+   "entry_date": "2026-11-18",
+   "entry": 50915.957410425006,
+   "assumed_entry": 50915.957410425006,
+   "entry_source": "assumed",
+   "stop": 48247.31,
+   "units": 0.05,
+   "lots": 0.05,
+   "too_small": false,
+   "financing": 0.33616678767123287,
+   "marks": [
+    [
+     "2026-11-18",
+     50317.675
+    ],
+    [
+     "2026-11-19",
+     49080.351
+    ]
+   ],
+   "notes": [],
+   "exit_date": "2026-11-20",
+   "exit": 48247.31,
+   "exit_source": "stop",
+   "reason": "stop",
+   "conv": 1.0,
+   "ret_pct": -5.241279053074632,
+   "pnl": -133.76853730892165,
+   "days_held": 2
   },
-  "GBRIDXGBP": {
+  {
    "id": 3,
    "code": "GBRIDXGBP",
    "name": "UK100",
@@ -93,58 +138,17 @@
      10568.413
     ]
    ],
-   "notes": []
-  }
- },
- "pending": {
-  "GBRIDXGBP": {
-   "side": "sell",
-   "id": 3,
-   "signal_date": "2026-11-25",
-   "close": 10568.413,
-   "why": "the 2-day RSI closed at 78.3, above 70",
-   "borderline": null,
-   "user_fill": null
-  }
- },
- "trades": [
-  {
-   "id": 1,
-   "code": "USA30IDXUSD",
-   "name": "US30",
-   "ccy": "USD",
-   "taken": true,
-   "signal_date": "2026-11-17",
-   "signal_rsi": 2.783200175710533,
-   "signal_close": 50911.163,
-   "entry_date": "2026-11-18",
-   "entry": 50915.957410425006,
-   "assumed_entry": 50915.957410425006,
-   "entry_source": "assumed",
-   "stop": 48247.31,
-   "units": 0.05,
-   "lots": 0.05,
-   "too_small": false,
-   "financing": 0.33616678767123287,
-   "marks": [
-    [
-     "2026-11-18",
-     50317.675
-    ],
-    [
-     "2026-11-19",
-     49080.351
-    ]
-   ],
    "notes": [],
-   "exit_date": "2026-11-20",
-   "exit": 48247.31,
-   "exit_source": "stop",
-   "reason": "stop",
-   "conv": 1.0,
-   "ret_pct": -5.241279053074632,
-   "pnl": -133.76853730892165,
-   "days_held": 2
+   "exit_why": "the 2-day RSI closed at 78.3, above 70",
+   "assumed_exit": 10567.396385824999,
+   "exit_date": "2026-11-26",
+   "exit": 10567.396385824999,
+   "exit_source": "assumed",
+   "reason": "signal",
+   "conv": 1.31065,
+   "ret_pct": -0.021762989490603513,
+   "pnl": -3.421973109719784,
+   "days_held": 7
   }
  ],
  "notes": [],
@@ -152,7 +156,7 @@
  "next_id": 4,
  "reminded_on": "2026-11-26",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "26 Nov 2026 18:05",
+ "last_sent": "27 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-26"
+ "last_morning": "2026-11-27"
 }
