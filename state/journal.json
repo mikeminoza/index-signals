@@ -2,12 +2,12 @@
  "version": 1,
  "start_date": "2026-11-06",
  "last_bar": {
-  "USA500IDXUSD": "2026-11-26",
-  "USATECHIDXUSD": "2026-11-26",
-  "USA30IDXUSD": "2026-11-26",
-  "DEUIDXEUR": "2026-11-26",
-  "GBRIDXGBP": "2026-11-26",
-  "JPNIDXJPY": "2026-11-26"
+  "USA500IDXUSD": "2026-11-27",
+  "USATECHIDXUSD": "2026-11-27",
+  "USA30IDXUSD": "2026-11-27",
+  "DEUIDXEUR": "2026-11-27",
+  "GBRIDXGBP": "2026-11-27",
+  "JPNIDXJPY": "2026-11-27"
  },
  "balance": 10000.0,
  "positions": {
@@ -28,7 +28,7 @@
    "units": 0.09,
    "lots": 0.09,
    "too_small": false,
-   "financing": 2.376892234971986,
+   "financing": 2.720572161231822,
    "marks": [
     [
      "2026-11-19",
@@ -53,12 +53,26 @@
     [
      "2026-11-26",
      25237.299
+    ],
+    [
+     "2026-11-27",
+     25487.566
     ]
    ],
    "notes": []
   }
  },
- "pending": {},
+ "pending": {
+  "DEUIDXEUR": {
+   "side": "sell",
+   "id": 2,
+   "signal_date": "2026-11-27",
+   "close": 25487.566,
+   "why": "the 2-day RSI closed at 84.6, above 70",
+   "borderline": null,
+   "user_fill": null
+  }
+ },
  "trades": [
   {
    "id": 1,
@@ -156,7 +170,7 @@
  "next_id": 4,
  "reminded_on": "2026-11-27",
  "last_reply": "11 Nov 2026 16:18",
- "last_sent": "27 Nov 2026 09:05",
+ "last_sent": "28 Nov 2026 09:05",
  "balance_month": "2026-11",
- "last_morning": "2026-11-27"
+ "last_morning": "2026-11-28"
 }
